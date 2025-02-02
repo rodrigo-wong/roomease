@@ -81,15 +81,41 @@ class BookableController extends Controller
      */
     public function edit(Bookable $bookable)
     {
-        //
+        if($bookable->bookable_type === BookableType::CONTRACTOR) {
+            $bookable = $bookable->load('contractor');
+        }
+
+        return Inertia::render('Bookables/Edit', [
+            'bookable' => $bookable
+        ]);
     }
+
 
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Bookable $bookable)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'rate' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string',
+            'email' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value),
+            'phone_number' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value),
+            'role' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value),
+        ]);
+
+        $bookable->update($validated);
+
+        if ($bookable->bookable_type === BookableType::CONTRACTOR) {
+            $bookable->contractor->update([
+                'role' => $request->role,
+                'phone_number' => $request->phone_number,
+                'email' => $request->email,
+            ]);
+        }
+
+        return redirect()->route('bookables.index')->with('success', 'Bookable updated successfully!');
     }
 
     /**
