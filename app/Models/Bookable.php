@@ -20,10 +20,11 @@ class Bookable extends Model
     /**
      * Get the contractor associated with the bookable.
      */
-    public function contractor(): HasOne
+    public function contractor()
     {
-        return $this->hasOne(Contractor::class);
+        return $this->hasOne(Contractor::class, 'bookable_id');
     }
+
     /**
      * Get the availability for the bookable.
      */
