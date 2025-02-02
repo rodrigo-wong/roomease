@@ -98,5 +98,7 @@ class BookableController extends Controller
     public function destroy(Bookable $bookable)
     {
         //
+        $bookable->delete();
+        return redirect()->route('bookables.index')->with('success', 'Bookable deleted successfully!');
     }
 }
