@@ -3,7 +3,7 @@ import { Inertia } from "@inertiajs/inertia";
 import { Link, useForm } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 
-const CreateBookable = () => {
+const BookablesCreate = () => {
     const { data, setData, post, processing, errors } = useForm({
         name: "",
         rate: "",
@@ -184,4 +184,4 @@ const CreateBookable = () => {
     );
 };
 
-export default CreateBookable;
+export default BookablesCreate;
