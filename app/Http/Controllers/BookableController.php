@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use Inertia\Inertia;
 use App\Models\Bookable;
+use App\Enums\BookableType;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class BookableController extends Controller
 {
@@ -33,8 +35,38 @@ class BookableController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        // Base validation for all bookables
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'rate' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string',
+            'bookable_type' => ['required', Rule::in(BookableType::values())]
+        ]);
+
+        // Additional validation for contractors
+        if ($request->bookable_type === 'contractor') {
+            $request->validate([
+                'role' => 'required|string|max:255',
+                'phone_number' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255',
+            ]);
+        }
+
+        // Create the bookable
+        $bookable = Bookable::create($validated);
+
+        // If bookable is a contractor, store extra contractor details
+        if ($request->bookable_type === 'contractor') {
+            $bookable->contractor()->create([
+                'role' => $request->role,
+                'phone_number' => $request->phone_number,
+                'email' => $request->email,
+            ]);
+        }
+
+        return redirect()->route('bookables.index')->with('success', 'Bookable created successfully!');
     }
+
 
     /**
      * Display the specified resource.
