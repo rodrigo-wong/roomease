@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Enums\BookableType;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Bookable extends Model
@@ -16,6 +17,13 @@ class Bookable extends Model
         'bookable_type' => BookableType::class, // Casts bookable_type as Enum
     ];
 
+    /**
+     * Get the contractor associated with the bookable.
+     */
+    public function contractor(): HasOne
+    {
+        return $this->hasOne(Contractor::class);
+    }
     /**
      * Get the availability for the bookable.
      */
