@@ -110,14 +110,15 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                             >
                                                 Edit
                                             </Link>
-                                            <button
-                                                onClick={() =>
-                                                    handleDelete(bookable.id)
+                                            <Link
+                                                href="#"
+                                                onClick={(e) =>
+                                                    handleDelete(bookable.id, e)
                                                 }
                                                 className="px-3 py-1 bg-red-500 text-white rounded"
                                             >
                                                 Delete
-                                            </button>
+                                            </Link>
                                         </td>
                                     </tr>
                                 ))
