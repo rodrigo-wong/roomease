@@ -110,24 +110,23 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                             {bookable.rate}
                                         </td>
                                         <td className="border p-2 space-x-2">
-                                            <Link
-                                                href={route(
+                                            <button
+                                                onClick={(e) => Inertia.get(route(
                                                     "bookables.edit",
                                                     bookable.id
-                                                )}
+                                                ))}
                                                 className="px-3 py-1 bg-yellow-500 text-white rounded"
                                             >
                                                 Edit
-                                            </Link>
-                                            <Link
-                                                href="#"
+                                            </button>
+                                            <button
                                                 onClick={(e) =>
                                                     handleDelete(bookable.id, e)
                                                 }
                                                 className="px-3 py-1 bg-red-500 text-white rounded"
                                             >
                                                 Delete
-                                            </Link>
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
