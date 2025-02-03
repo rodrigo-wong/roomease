@@ -81,7 +81,6 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                     <table className="w-full border-collapse border border-gray-200">
                         <thead>
                             <tr className="bg-gray-100">
-                                <th className="border p-2">ID</th>
                                 <th className="border p-2">Name</th>
                                 <th className="border p-2">Description</th>
                                 <th className="border p-2">Rate</th>
@@ -92,9 +91,6 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                             {getBookables().length > 0 ? (
                                 getBookables().map((bookable) => (
                                     <tr key={bookable.id} className="border-t">
-                                        <td className="border p-2">
-                                            {bookable.id}
-                                        </td>
                                         <td className="border p-2">
                                             {bookable.name}
                                         </td>
