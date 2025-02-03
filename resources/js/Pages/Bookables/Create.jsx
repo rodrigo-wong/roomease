@@ -3,6 +3,15 @@ import { Inertia } from "@inertiajs/inertia";
 import { Link, useForm } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 
+const daysOfWeek = [
+    { id: 0, name: "Sunday" },
+    { id: 1, name: "Monday" },
+    { id: 2, name: "Tuesday" },
+    { id: 3, name: "Wednesday" },
+    { id: 4, name: "Thursday" },
+    { id: 5, name: "Friday" },
+    { id: 6, name: "Saturday" },
+];
 const BookablesCreate = () => {
     const { data, setData, post, processing, errors } = useForm({
         name: "",
@@ -12,11 +21,41 @@ const BookablesCreate = () => {
         email: "",
         phone_number: "",
         role: "",
+        availability: daysOfWeek.reduce((acc, day) => {
+            acc[day.id] = [{ start_time: "09:00", end_time: "17:00" }];
+            return acc;
+        }, {}),
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
         post(route("bookables.store"));
+    };
+
+    const addTimeSlot = (dayId) => {
+        setData("availability", {
+            ...data.availability,
+            [dayId]: [
+                ...data.availability[dayId],
+                { start_time: "", end_time: "" },
+            ],
+        });
+    };
+
+    const removeTimeSlot = (dayId, index) => {
+        setData("availability", {
+            ...data.availability,
+            [dayId]: data.availability[dayId].filter((_, i) => i !== index),
+        });
+    };
+
+    const updateTimeSlot = (dayId, index, field, value) => {
+        const updatedSlots = [...data.availability[dayId]];
+        updatedSlots[index][field] = value;
+        setData("availability", {
+            ...data.availability,
+            [dayId]: updatedSlots,
+        });
     };
 
     return (
@@ -160,6 +199,100 @@ const BookablesCreate = () => {
                                 {errors.description}
                             </p>
                         )}
+                    </div>
+
+                    {/* Availability Table */}
+                    <div>
+                        <h3 className="text-lg font-semibold mb-2">
+                            Availability
+                        </h3>
+                        <table className="w-full border-collapse border border-gray-300">
+                            <thead>
+                                <tr className="bg-gray-100">
+                                    <th className="border p-2">Day</th>
+                                    <th className="border p-2">Time Slots</th>
+                                    <th className="border p-2">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {daysOfWeek.map((day) => (
+                                    <tr key={day.id}>
+                                        <td className="border p-2 font-semibold">
+                                            {day.name}
+                                        </td>
+                                        <td className="border p-2">
+                                            {data.availability[day.id].map(
+                                                (slot, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className="flex items-center space-x-2 mb-2"
+                                                    >
+                                                        <input
+                                                            type="time"
+                                                            value={
+                                                                slot.start_time
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateTimeSlot(
+                                                                    day.id,
+                                                                    index,
+                                                                    "start_time",
+                                                                    e.target
+                                                                        .value
+                                                                )
+                                                            }
+                                                            className="border p-2 rounded"
+                                                            required
+                                                        />
+                                                        <span>to</span>
+                                                        <input
+                                                            type="time"
+                                                            value={
+                                                                slot.end_time
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateTimeSlot(
+                                                                    day.id,
+                                                                    index,
+                                                                    "end_time",
+                                                                    e.target
+                                                                        .value
+                                                                )
+                                                            }
+                                                            className="border p-2 rounded"
+                                                            required
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                removeTimeSlot(
+                                                                    day.id,
+                                                                    index
+                                                                )
+                                                            }
+                                                            className="px-2 py-1 bg-red-500 text-white rounded"
+                                                        >
+                                                            ❌
+                                                        </button>
+                                                    </div>
+                                                )
+                                            )}
+                                        </td>
+                                        <td className="border p-2">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    addTimeSlot(day.id)
+                                                }
+                                                className="px-2 py-1 bg-blue-500 text-white rounded"
+                                            >
+                                                + Add Slot
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
 
                     {/* Submit and Cancel Buttons */}
