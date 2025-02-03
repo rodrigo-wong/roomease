@@ -187,7 +187,6 @@ class BookableController extends Controller
      */
     public function destroy(Bookable $bookable)
     {
-        dd($bookable);
         $bookable->delete();
         return redirect()->back()->with('success', 'Bookable deleted successfully!');
     }
