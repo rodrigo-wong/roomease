@@ -8,11 +8,19 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
     const [activeTab, setActiveTab] = useState("products");
 
     // Function to handle delete
-    const handleDelete = (id) => {
+    const handleDelete = (id, e) => {
+        e.preventDefault();
         if (confirm("Are you sure you want to delete this bookable?")) {
-            Inertia.delete(route("bookables.destroy", id));
+            Inertia.delete(route("bookables.destroy", id), {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    console.log("Deleted successfully!");
+                },
+            });
         }
     };
+    
 
     // Function to get the currently active bookables
     const getBookables = () => {
