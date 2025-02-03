@@ -55,12 +55,12 @@ class BookableController extends Controller
 
         // Create the bookable
         $bookable = Bookable::create($validated);
-        // Save availability slots
+
+        // Save availability slots using the relationship
         foreach ($request->availability as $day => $slots) {
             foreach ($slots as $slot) {
                 if (!empty($slot['start_time']) && !empty($slot['end_time'])) {
-                    BookableAvailability::create([
-                        'bookable_id' => $bookable->id,
+                    $bookable->availability()->create([
                         'day_of_week' => $day,
                         'start_time' => $slot['start_time'],
                         'end_time' => $slot['end_time'],
@@ -68,6 +68,7 @@ class BookableController extends Controller
                 }
             }
         }
+
 
         // If bookable is a contractor, store extra contractor details
         if ($request->bookable_type === 'contractor') {
@@ -145,7 +146,7 @@ class BookableController extends Controller
                     ];
                 });
             })
-            ->flatten(); 
+            ->collapse();
 
 
         // Load existing availabilities
