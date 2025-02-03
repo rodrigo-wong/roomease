@@ -14,8 +14,6 @@ const daysOfWeek = [
 ];
 
 const BookablesEdit = ({ bookable }) => {
-    console.log("Bookable received:", bookable);
-
     const { data, setData, put, processing, errors } = useForm({
         name: bookable.name,
         rate: bookable.rate,
