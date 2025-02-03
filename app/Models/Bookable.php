@@ -54,8 +54,8 @@ class Bookable extends Model
      */
     public function scopeContractors($query)
     {
-        return $query->where('bookable_type', BookableType::CONTRACTOR);
-    }
+        return $query->where('bookable_type', BookableType::CONTRACTOR)->with('contractor');
+    }    
 
     /**
      * Get the room associated with the bookable.
