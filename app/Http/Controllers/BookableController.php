@@ -7,6 +7,7 @@ use App\Models\Bookable;
 use App\Enums\BookableType;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Models\BookableAvailability;
 
 class BookableController extends Controller
 {
@@ -54,6 +55,19 @@ class BookableController extends Controller
 
         // Create the bookable
         $bookable = Bookable::create($validated);
+        // Save availability slots
+        foreach ($request->availability as $day => $slots) {
+            foreach ($slots as $slot) {
+                if (!empty($slot['start_time']) && !empty($slot['end_time'])) {
+                    BookableAvailability::create([
+                        'bookable_id' => $bookable->id,
+                        'day_of_week' => $day,
+                        'start_time' => $slot['start_time'],
+                        'end_time' => $slot['end_time'],
+                    ]);
+                }
+            }
+        }
 
         // If bookable is a contractor, store extra contractor details
         if ($request->bookable_type === 'contractor') {
@@ -81,15 +95,17 @@ class BookableController extends Controller
      */
     public function edit(Bookable $bookable)
     {
-        if($bookable->bookable_type === BookableType::CONTRACTOR) {
-            $bookable = $bookable->load('contractor');
+        if ($bookable->bookable_type === BookableType::CONTRACTOR) {
+            $bookable->load('contractor');
         }
+
+        // Load bookable availability
+        $bookable->load('availability');
 
         return Inertia::render('Bookables/Edit', [
             'bookable' => $bookable
         ]);
     }
-
 
     /**
      * Update the specified resource in storage.
@@ -100,19 +116,66 @@ class BookableController extends Controller
             'name' => 'required|string|max:255',
             'rate' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
-            'email' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value),
-            'phone_number' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value),
-            'role' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value),
+            'email' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value) . '|nullable|string|email|max:255',
+            'phone_number' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value) . '|nullable|string|max:255',
+            'role' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value) . '|nullable|string|max:255',
+            'availability' => 'nullable|array',
         ]);
 
+        // Update bookable details
         $bookable->update($validated);
 
+        // Update contractor details if applicable
         if ($bookable->bookable_type === BookableType::CONTRACTOR) {
             $bookable->contractor->update([
                 'role' => $request->role,
                 'phone_number' => $request->phone_number,
                 'email' => $request->email,
             ]);
+        }
+
+        // Convert availability array to a flat structure with `day_of_week`
+        $newAvailabilities = collect($request->availability ?? [])
+            ->map(function ($slots, $dayOfWeek) {
+                return collect($slots)->map(function ($slot) use ($dayOfWeek) {
+                    return [
+                        'day_of_week' => $dayOfWeek,
+                        'start_time' => $slot['start_time'],
+                        'end_time' => $slot['end_time'],
+                    ];
+                });
+            })
+            ->flatten(); 
+
+
+        // Load existing availabilities
+        $existingAvailabilities = $bookable->availability->keyBy(function ($availability) {
+            return "{$availability->day_of_week}-{$availability->start_time}-{$availability->end_time}";
+        });
+
+        // Delete old availabilities that were removed
+        $existingAvailabilities->each(function ($availability) use ($newAvailabilities) {
+            $exists = $newAvailabilities->contains(function ($slot) use ($availability) {
+                return $slot['day_of_week'] == $availability->day_of_week &&
+                    $slot['start_time'] == $availability->start_time &&
+                    $slot['end_time'] == $availability->end_time;
+            });
+
+            if (!$exists) {
+                $availability->delete();
+            }
+        });
+
+        // Add new availability slots
+        foreach ($newAvailabilities as $slot) {
+            if (!empty($slot['start_time']) && !empty($slot['end_time'])) {
+                BookableAvailability::updateOrCreate([
+                    'bookable_id' => $bookable->id,
+                    'day_of_week' => $slot['day_of_week'],
+                    'start_time' => $slot['start_time'],
+                    'end_time' => $slot['end_time'],
+                ]);
+            }
         }
 
         return redirect()->route('bookables.index')->with('success', 'Bookable updated successfully!');
