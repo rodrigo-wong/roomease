@@ -180,7 +180,7 @@ const Booking = ({ rooms }) => {
                             min="2"
                             value={hours}
                             onChange={(e) => setHours(Number(e.target.value))}
-                            className="p-2 border border-gray-300 rounded w-full"
+                            className="p-2 border border-gray-300 rounded"
                         />
                         {errors.hours && (
                             <p className="text-red-500">{errors.hours}</p>
