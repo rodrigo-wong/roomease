@@ -116,7 +116,7 @@ const Booking = ({ rooms }) => {
 
     return (
         <GuestLayout>
-            <div className="relative p-6 max-w-4xl mx-auto bg-white rounded-lg shadow min-h-[500px] flex flex-col">
+            <div className="relative p-6 max-w-5xl mx-auto bg-white rounded-lg shadow min-h-[500px] flex flex-col">
                 {/* Stepper */}
                 <div className="flex items-center justify-between mb-6 relative">
                     {["Room", "Date", "Time Slots", "Add-ons", "Checkout"].map(
