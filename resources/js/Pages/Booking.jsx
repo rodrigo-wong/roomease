@@ -143,7 +143,7 @@ const Booking = ({ rooms }) => {
         <GuestLayout>
             <div className="relative p-6 max-w-5xl mx-auto bg-white rounded-lg shadow min-h-[500px] flex flex-col">
                 {/* Stepper */}
-                <div className="flex items-center justify-between mb-6 relative">
+                <div className="flex items-center justify-center mb-6 relative">
                     {[
                         "Room",
                         "Date",
@@ -152,7 +152,7 @@ const Booking = ({ rooms }) => {
                         "Review",
                         "Checkout",
                     ].map((label, index, array) => (
-                        <div key={index} className="flex items-center w-full">
+                        <div key={index} className="flex items-center justify-center w-full">
                             <div
                                 className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-white 
                         ${step === index + 1 ? "bg-blue-500" : "bg-gray-300"}`}
