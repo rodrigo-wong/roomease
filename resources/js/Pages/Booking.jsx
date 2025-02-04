@@ -165,7 +165,15 @@ const Booking = ({ rooms }) => {
                                             : "border-gray-300"
                                     }`}
                                 >
-                                    {room.name}
+                                    <h3 className="font-semibold">
+                                        {room.name}
+                                    </h3>
+                                    <p className="text-sm text-gray-600">
+                                        {room.description}
+                                    </p>
+                                    <p className="font-bold text-green-600">
+                                        ${room.rate} / hour
+                                    </p>
                                 </button>
                             ))}
                         </div>
@@ -228,8 +236,8 @@ const Booking = ({ rooms }) => {
                                         className={`p-2 border rounded ${
                                             selectedTimeslots.includes(
                                                 slot.start_time
-                                            )
-                                            && selectedTimeslots.includes(
+                                            ) &&
+                                            selectedTimeslots.includes(
                                                 slot.end_time
                                             )
                                                 ? "border-blue-500 bg-blue-100"
