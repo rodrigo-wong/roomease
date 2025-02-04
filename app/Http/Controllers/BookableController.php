@@ -55,12 +55,12 @@ class BookableController extends Controller
 
         // Create the bookable
         $bookable = Bookable::create($validated);
-        // Save availability slots
+
+        // Save availability slots using the relationship
         foreach ($request->availability as $day => $slots) {
             foreach ($slots as $slot) {
                 if (!empty($slot['start_time']) && !empty($slot['end_time'])) {
-                    BookableAvailability::create([
-                        'bookable_id' => $bookable->id,
+                    $bookable->availability()->create([
                         'day_of_week' => $day,
                         'start_time' => $slot['start_time'],
                         'end_time' => $slot['end_time'],
@@ -68,6 +68,7 @@ class BookableController extends Controller
                 }
             }
         }
+
 
         // If bookable is a contractor, store extra contractor details
         if ($request->bookable_type === 'contractor') {
@@ -145,7 +146,7 @@ class BookableController extends Controller
                     ];
                 });
             })
-            ->flatten(); 
+            ->collapse();
 
 
         // Load existing availabilities
@@ -186,8 +187,128 @@ class BookableController extends Controller
      */
     public function destroy(Bookable $bookable)
     {
-        //
         $bookable->delete();
-        return redirect()->route('bookables.index')->with('success', 'Bookable deleted successfully!');
+        return redirect()->back()->with('success', 'Bookable deleted successfully!');
+    }
+
+    /**
+     * Get available times for a room on a given date.
+     */
+    public function getAvailableTimes(Request $request, Bookable $room)
+    {
+        $request->validate([
+            'date' => 'required|date_format:Y-m-d',
+            'hours' => 'required|integer|min:2|max:24',
+        ]);
+
+        $date = $request->date;
+        $bookingDuration = $request->hours * 60; // Convert hours to minutes
+        $dayOfWeek = \Carbon\Carbon::parse($date)->dayOfWeek;
+
+        // Fetch the room's availability for the given day of the week
+        $availabilitySlots = $room->availability()
+            ->where('day_of_week', $dayOfWeek)
+            ->get()
+            ->map(fn($slot) => [
+                'start_time' => $slot->start_time,
+                'end_time' => $slot->end_time,
+            ]);
+
+        // Fetch existing booked slots using the relationship
+        $bookedSlots = $room->orders()
+            ->whereDate('start_time', $date)
+            ->get()
+            ->map(fn($order) => [
+                'start_time' => $order->start_time->format('H:i'),
+                'end_time' => $order->end_time->format('H:i'),
+            ]);
+
+        // Break available slots into 30-minute intervals
+        $availableSlots = collect();
+
+        foreach ($availabilitySlots as $slot) {
+            $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $slot['start_time']);
+            $endTime = \Carbon\Carbon::createFromFormat('H:i:s', $slot['end_time']);
+
+            while ($startTime->addMinutes(30)->lte($endTime)) {
+                $slotStart = $startTime->copy()->subMinutes(30)->format('H:i'); // Reset start
+                $slotEnd = $startTime->copy()->addMinutes($bookingDuration - 30)->format('H:i'); // Full duration
+
+                // Ensure the slot end is within the allowed time
+                if ($slotEnd > $endTime->format('H:i')) {
+                    break;
+                }
+
+                // Check if this booking period is fully available (no conflicts)
+                $conflict = $bookedSlots->contains(
+                    fn($booked) => ($slotStart < $booked['end_time']) && ($slotEnd > $booked['start_time'])
+                );
+
+                if (!$conflict) {
+                    $availableSlots->push([
+                        'start_time' => $slotStart,
+                        'end_time' => $slotEnd,
+                    ]);
+                }
+            }
+        }
+
+        return response()->json([
+            'date' => $date,
+            'available_slots' => $availableSlots->values(),
+        ]);
+    }
+
+    /**
+     * Get all available bookables (non-rooms) that are free for a given date and time slot.
+     */
+    public function getAvailableBookables(Request $request, Bookable $room)
+    {
+        
+        $request->validate([
+            'date' => 'required|date_format:Y-m-d',
+            'timeslot' => 'required|array',
+            'timeslot.start_time' => 'required|date_format:H:i',
+            'timeslot.end_time' => 'required|date_format:H:i|after:timeslot.start_time',
+        ]);
+
+        $date = $request->date;
+        $selectedStartTime = $request->timeslot['start_time'];
+        $selectedEndTime = $request->timeslot['end_time'];
+
+        // Fetch all bookables that are NOT rooms
+        $availableBookables = Bookable::where('bookable_type', '!=', 'room')->get();
+
+        // Fetch existing bookings for all non-room bookables on the requested date
+        $bookedBookables = \App\Models\OrderBookable::whereDate('start_time', $date)
+            ->get()
+            ->groupBy('bookable_id'); // Group by bookable ID for faster lookup
+
+        // Filter only bookables that are not booked for the selected timeslot
+        $matchingBookables = $availableBookables->filter(function ($bookable) use ($bookedBookables, $selectedStartTime, $selectedEndTime) {
+            if ($bookedBookables->has($bookable->id)) {
+                $existingBookings = $bookedBookables->get($bookable->id);
+
+                foreach ($existingBookings as $booking) {
+                    if (
+                        ($selectedStartTime < $booking->end_time->format('H:i')) &&
+                        ($selectedEndTime > $booking->start_time->format('H:i'))
+                    ) {
+                        return false; // Conflict found, bookable is already taken
+                    }
+                }
+            }
+
+            return true; // Bookable is available for the selected timeslot
+        });
+
+        return response()->json([
+            'date' => $date,
+            'selected_timeslot' => [
+                'start_time' => $selectedStartTime,
+                'end_time' => $selectedEndTime,
+            ],
+            'available_bookables' => $matchingBookables->values(),
+        ]);
     }
 }

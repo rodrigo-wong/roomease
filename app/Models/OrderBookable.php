@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderBookable extends Model
 {
-    protected $fillable = ['order_id', 'bookable_id', 'quantity', 'price'];
+    protected $fillable = ['order_id', 'bookable_id', 'quantity', 'start_time', 'end_time'];
 
     /**
      * Get the associated Order.

@@ -8,11 +8,19 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
     const [activeTab, setActiveTab] = useState("products");
 
     // Function to handle delete
-    const handleDelete = (id) => {
+    const handleDelete = (id, e) => {
+        e.preventDefault();
         if (confirm("Are you sure you want to delete this bookable?")) {
-            Inertia.delete(route("bookables.destroy", id));
+            Inertia.delete(route("bookables.destroy", id), {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    console.log("Deleted successfully!");
+                },
+            });
         }
     };
+    
 
     // Function to get the currently active bookables
     const getBookables = () => {
@@ -110,24 +118,23 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                             {bookable.rate}
                                         </td>
                                         <td className="border p-2 space-x-2">
-                                            <Link
-                                                href={route(
+                                            <button
+                                                onClick={(e) => Inertia.get(route(
                                                     "bookables.edit",
                                                     bookable.id
-                                                )}
+                                                ))}
                                                 className="px-3 py-1 bg-yellow-500 text-white rounded"
                                             >
                                                 Edit
-                                            </Link>
-                                            <Link
-                                                href="#"
+                                            </button>
+                                            <button
                                                 onClick={(e) =>
                                                     handleDelete(bookable.id, e)
                                                 }
                                                 className="px-3 py-1 bg-red-500 text-white rounded"
                                             >
                                                 Delete
-                                            </Link>
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
