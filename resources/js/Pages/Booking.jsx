@@ -13,7 +13,13 @@ const Booking = ({ rooms }) => {
     const [selectedAddons, setSelectedAddons] = useState([]);
     const [loadingTimeslots, setLoadingTimeslots] = useState(false);
     const [hours, setHours] = useState(2);
-    const [errors, setErrors] = useState({}); // Store validation errors
+    const [errors, setErrors] = useState({}); 
+
+     // New state for user information in checkout step
+     const [firstName, setFirstName] = useState("");
+     const [lastName, setLastName] = useState("");
+     const [email, setEmail] = useState("");
+     const [phoneNumber, setPhoneNumber] = useState("");
 
     // Fetch available time slots when room and date are selected
     useEffect(() => {
@@ -78,6 +84,17 @@ const Booking = ({ rooms }) => {
                 newErrors.timeslots = "Please select a time slot.";
         }
 
+        if (step === 6) {
+            if (!firstName.trim()) newErrors.firstName = "First name is required.";
+            if (!lastName.trim()) newErrors.lastName = "Last name is required.";
+            if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                newErrors.email = "Valid email is required.";
+            }
+            if (!phoneNumber.trim() || !/^\d{10,15}$/.test(phoneNumber)) {
+                newErrors.phoneNumber = "Valid phone number is required.";
+            }
+        }
+
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length === 0) {
@@ -104,6 +121,14 @@ const Booking = ({ rooms }) => {
         );
     };
 
+    // Calculate total cost
+    const roomSubtotal = selectedRoom ? selectedRoom.rate * hours : 0;
+    const addonsSubtotal = selectedAddons.reduce(
+        (sum, addon) => sum + addon.rate * hours,
+        0
+    );
+    const totalAmount = roomSubtotal + addonsSubtotal;
+
     // Handle booking submission
     const handleSubmit = () => {
         Inertia.post(route("booking.store"), {
@@ -118,34 +143,36 @@ const Booking = ({ rooms }) => {
         <GuestLayout>
             <div className="relative p-6 max-w-5xl mx-auto bg-white rounded-lg shadow min-h-[500px] flex flex-col">
                 {/* Stepper */}
-                <div className="flex items-center justify-between mb-6 relative">
-                    {["Room", "Date", "Time Slots", "Add-ons", "Checkout"].map(
-                        (label, index, array) => (
+                <div className="flex items-center justify-center mb-6 relative">
+                    {[
+                        "Room",
+                        "Date",
+                        "Time Slots",
+                        "Add-ons",
+                        "Review",
+                        "Checkout",
+                    ].map((label, index, array) => (
+                        <div key={index} className="flex items-center justify-center w-full">
                             <div
-                                key={index}
-                                className="flex items-center w-full"
-                            >
-                                <div
-                                    className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-white 
+                                className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-white 
                         ${step === index + 1 ? "bg-blue-500" : "bg-gray-300"}`}
-                                >
-                                    {index + 1}
-                                </div>
-                                <span
-                                    className={`text-sm font-semibold ml-2 ${
-                                        step === index + 1
-                                            ? "text-blue-600"
-                                            : "text-gray-500"
-                                    }`}
-                                >
-                                    {label}
-                                </span>
-                                {index < array.length - 1 && (
-                                    <div className="flex-grow border-t-2 border-gray-300 mx-2"></div>
-                                )}
+                            >
+                                {index + 1}
                             </div>
-                        )
-                    )}
+                            <span
+                                className={`text-sm font-semibold ml-2 ${
+                                    step === index + 1
+                                        ? "text-blue-600"
+                                        : "text-gray-500"
+                                }`}
+                            >
+                                {label}
+                            </span>
+                            {index < array.length - 1 && (
+                                <div className="flex-grow border-t-2 border-gray-300 mx-2"></div>
+                            )}
+                        </div>
+                    ))}
                 </div>
 
                 {/* Step 1: Select Room */}
@@ -293,27 +320,147 @@ const Booking = ({ rooms }) => {
                         )}
                     </div>
                 )}
-                {/* Step 5: Checkout */}
+
+                {/* Step 5: Review Order */}
                 {step === 5 && (
                     <div>
                         <h2 className="text-lg font-semibold mb-4">
                             Review Your Booking
                         </h2>
-                        <p>
-                            <strong>Room:</strong> {selectedRoom?.name}
-                        </p>
-                        <p>
-                            <strong>Date:</strong> {selectedDate}
-                        </p>
-                        <p>
-                            <strong>Time Slots:</strong>{" "}
-                            {selectedTimeslots.join(", ")}
-                        </p>
-                        <p>
-                            <strong>Add-ons:</strong>{" "}
-                            {selectedAddons.map((a) => a.name).join(", ") ||
-                                "None"}
-                        </p>
+                        <table className="w-full border-collapse border border-gray-300">
+                            <thead>
+                                <tr className="bg-gray-100">
+                                    <th className="border p-2 text-left">
+                                        Type
+                                    </th>
+                                    <th className="border p-2 text-left">
+                                        Item
+                                    </th>
+                                    <th className="border p-2 text-left">
+                                        Rate
+                                    </th>
+                                    <th className="border p-2 text-left">
+                                        Quantity
+                                    </th>
+                                    <th className="border p-2 text-left">
+                                        Subtotal
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[...[selectedRoom], ...selectedAddons].map(
+                                    (bookable) => (
+                                        <tr key={bookable.id}>
+                                            <td className="border p-2">
+                                                {bookable.bookable_type.toUpperCase()}
+                                            </td>
+                                            <td className="border p-2">
+                                                {bookable.name}
+                                            </td>
+                                            <td className="border p-2">
+                                                ${bookable.rate}
+                                            </td>
+                                            <td className="border p-2">
+                                                {hours} hours
+                                            </td>
+                                            <td className="border p-2">
+                                                ${bookable.rate * hours}
+                                            </td>
+                                        </tr>
+                                    )
+                                )}
+                                <tr className="font-bold">
+                                    <td className="border p-2" colSpan="4">
+                                        Total
+                                    </td>
+                                    <td className="border p-2">
+                                        ${totalAmount}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+                {/* Step 6: Checkout */}
+                {step === 6 && (
+                    <div>
+                        <h2 className="text-lg font-semibold mb-4">
+                            Checkout Information
+                        </h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* First Name */}
+                            <div>
+                                <label className="block font-semibold">
+                                    First Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={firstName}
+                                    onChange={(e) =>
+                                        setFirstName(e.target.value)
+                                    }
+                                    className="p-2 border border-gray-300 rounded w-full"
+                                />
+                                {errors.firstName && (
+                                    <p className="text-red-500">
+                                        {errors.firstName}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Last Name */}
+                            <div>
+                                <label className="block font-semibold">
+                                    Last Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={lastName}
+                                    onChange={(e) =>
+                                        setLastName(e.target.value)
+                                    }
+                                    className="p-2 border border-gray-300 rounded w-full"
+                                />
+                                {errors.lastName && (
+                                    <p className="text-red-500">
+                                        {errors.lastName}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Email */}
+                        <div className="mt-4">
+                            <label className="block font-semibold">Email</label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="p-2 border border-gray-300 rounded w-full"
+                            />
+                            {errors.email && (
+                                <p className="text-red-500">{errors.email}</p>
+                            )}
+                        </div>
+
+                        {/* Phone Number */}
+                        <div className="mt-4">
+                            <label className="block font-semibold">
+                                Phone Number
+                            </label>
+                            <input
+                                type="text"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                className="p-2 border border-gray-300 rounded w-full"
+                                placeholder="Enter phone number"
+                            />
+                            {errors.phoneNumber && (
+                                <p className="text-red-500">
+                                    {errors.phoneNumber}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -326,7 +473,7 @@ const Booking = ({ rooms }) => {
                     >
                         Back
                     </button>
-                    {step === 5 ? (
+                    {step === 6 ? (
                         <button
                             onClick={handleSubmit}
                             className="px-4 py-2 bg-green-500 text-white rounded"
