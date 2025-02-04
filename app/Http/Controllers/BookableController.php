@@ -8,6 +8,8 @@ use App\Enums\BookableType;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Models\BookableAvailability;
+use Illuminate\Support\Carbon;
+use App\Models\OrderBookable;
 
 class BookableController extends Controller
 {
@@ -228,8 +230,8 @@ class BookableController extends Controller
         $availableSlots = collect();
 
         foreach ($availabilitySlots as $slot) {
-            $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $slot['start_time']);
-            $endTime = \Carbon\Carbon::createFromFormat('H:i:s', $slot['end_time']);
+            $startTime = Carbon::createFromFormat('H:i:s', $slot['start_time']);
+            $endTime = Carbon::createFromFormat('H:i:s', $slot['end_time']);
 
             while ($startTime->addMinutes(30)->lte($endTime)) {
                 $slotStart = $startTime->copy()->subMinutes(30)->format('H:i'); // Reset start
@@ -281,7 +283,7 @@ class BookableController extends Controller
         $availableBookables = Bookable::where('bookable_type', '!=', 'room')->get();
 
         // Fetch existing bookings for all non-room bookables on the requested date
-        $bookedBookables = \App\Models\OrderBookable::whereDate('start_time', $date)
+        $bookedBookables = OrderBookable::whereDate('start_time', $date)
             ->get()
             ->groupBy('bookable_id'); // Group by bookable ID for faster lookup
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Inertia } from "@inertiajs/inertia";
+import { router } from "@inertiajs/react";
 import { Link, usePage } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 
@@ -13,7 +13,7 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
     const handleDelete = (id, e) => {
         e.preventDefault();
         if (confirm("Are you sure you want to delete this bookable?")) {
-            Inertia.delete(route("bookables.destroy", id), {
+            router.delete(route("bookables.destroy", id), {
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => {
@@ -121,7 +121,7 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                         </td>
                                         <td className="border p-2 space-x-2">
                                             <button
-                                                onClick={(e) => Inertia.get(route(
+                                                onClick={(e) => router.get(route(
                                                     "bookables.edit",
                                                     bookable.id
                                                 ))}
