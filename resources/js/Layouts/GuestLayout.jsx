@@ -14,7 +14,7 @@ export default function GuestLayout({ children }) {
             </div>
 
             {/* Booking Card */}
-            <div className="w-full max-w-3xl bg-white shadow-lg rounded-lg overflow-hidden">
+            <div className="w-full max-w-5xl bg-white shadow-lg rounded-lg overflow-hidden">
                 <div className="p-6">{children}</div>
             </div>
 
