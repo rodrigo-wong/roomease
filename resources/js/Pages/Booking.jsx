@@ -251,7 +251,7 @@ const Booking = ({ rooms }) => {
                             <p>Loading available time slots...</p>
                         ) : (
                             <div className="grid grid-cols-3 gap-2">
-                                {availableTimeslots.map((slot, index) => (
+                                {availableTimeslots?.map((slot, index) => (
                                     <button
                                         key={index}
                                         onClick={() =>
@@ -289,7 +289,7 @@ const Booking = ({ rooms }) => {
                         </h2>
                         {availableAddons.length > 0 ? (
                             <div className="grid grid-cols-2 gap-4">
-                                {availableAddons.map((addon) => (
+                                {availableAddons?.map((addon) => (
                                     <button
                                         key={addon.id}
                                         onClick={() =>
@@ -348,7 +348,7 @@ const Booking = ({ rooms }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {[...[selectedRoom], ...selectedAddons].map(
+                                {[...[selectedRoom], ...selectedAddons]?.map(
                                     (bookable) => (
                                         <tr key={bookable.id}>
                                             <td className="border p-2">
