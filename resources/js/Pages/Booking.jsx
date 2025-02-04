@@ -229,6 +229,9 @@ const Booking = ({ rooms }) => {
                                             selectedTimeslots.includes(
                                                 slot.start_time
                                             )
+                                            && selectedTimeslots.includes(
+                                                slot.end_time
+                                            )
                                                 ? "border-blue-500 bg-blue-100"
                                                 : "border-gray-300"
                                         }`}
