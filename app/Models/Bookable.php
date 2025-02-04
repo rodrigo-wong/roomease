@@ -41,6 +41,11 @@ class Bookable extends Model
         return $this->hasMany(OrderBookable::class);
     }
 
+    public function product()
+    {
+        return $this->hasOne(Product::class);
+    }
+
     /**
      * Get the payments associated with the bookable.
      */
@@ -55,7 +60,7 @@ class Bookable extends Model
     public function scopeContractors($query)
     {
         return $query->where('bookable_type', BookableType::CONTRACTOR)->with('contractor');
-    }    
+    }
 
     /**
      * Get the room associated with the bookable.
@@ -71,6 +76,6 @@ class Bookable extends Model
      */
     public function scopeProducts($query)
     {
-        return $query->where('bookable_type', BookableType::PRODUCT);
+        return $query->where('bookable_type', BookableType::PRODUCT)->with('product');
     }
 }

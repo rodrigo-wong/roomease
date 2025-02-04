@@ -7,6 +7,8 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
     // State to track active tab
     const [activeTab, setActiveTab] = useState("products");
 
+    console.log(contractors);
+
     // Function to handle delete
     const handleDelete = (id, e) => {
         e.preventDefault();

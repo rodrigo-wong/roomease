@@ -16,6 +16,7 @@ class BookableController extends Controller
      */
     public function index()
     {
+        //dd(Bookable::contractors()->get());
         return Inertia::render('Bookables/Index', [
             'products' => fn() => Bookable::products()->get(),
             'rooms' => fn() => Bookable::rooms()->get(),
@@ -264,7 +265,7 @@ class BookableController extends Controller
      */
     public function getAvailableBookables(Request $request, Bookable $room)
     {
-        
+
         $request->validate([
             'date' => 'required|date_format:Y-m-d',
             'timeslot' => 'required|array',
