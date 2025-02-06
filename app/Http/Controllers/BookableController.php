@@ -71,6 +71,12 @@ class BookableController extends Controller
                 'category_id' => 'required|exists:product_categories,id',
             ]);
         }
+
+        if ($request->bookable_type === 'room') {
+            $request->validate([
+                'capacity' => 'required|integer|min:1',
+            ]);
+        }
         // Create the bookable
         $bookable = Bookable::create($validated);
 
@@ -92,6 +98,14 @@ class BookableController extends Controller
                 'brand' => $request->brand,
                 'product_category_id' => $request->category_id,
                 'description' => $request->description,
+            ]);
+        }
+
+        if ($request->bookable_type === 'room') {
+            $bookable->room()->create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'capacity' => $request->capacity,
             ]);
         }
 
