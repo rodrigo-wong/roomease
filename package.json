@@ -21,8 +21,12 @@
         "vite": "^6.0.11"
     },
     "dependencies": {
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.0",
         "@inertiajs/inertia": "^0.11.1",
         "@inertiajs/inertia-react": "^0.8.1",
+        "@mui/icons-material": "^6.4.3",
+        "@mui/material": "^6.4.3",
         "build": "^0.1.4",
         "npm": "^11.1.0",
         "run": "^1.5.0",
