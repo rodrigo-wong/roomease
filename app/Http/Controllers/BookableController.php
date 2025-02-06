@@ -10,6 +10,8 @@ use Illuminate\Validation\Rule;
 use App\Models\BookableAvailability;
 use Illuminate\Support\Carbon;
 use App\Models\OrderBookable;
+use App\Models\Product;
+use App\Models\ProductCategory;
 
 class BookableController extends Controller
 {
@@ -31,7 +33,9 @@ class BookableController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Bookables/Create');
+        return Inertia::render('Bookables/Create', [
+            'productCategories' => ProductCategory::all(),
+        ]);
     }
 
     /**
@@ -39,13 +43,15 @@ class BookableController extends Controller
      */
     public function store(Request $request)
     {
-        // Base validation for all bookables
         $validated = $request->validate([
+            // Base validation for all bookables
             'name' => 'required|string|max:255',
             'rate' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
-            'bookable_type' => ['required', Rule::in(BookableType::values())]
+            'bookable_type' => ['required', Rule::in(BookableType::values())],
+
         ]);
+
 
         // Additional validation for contractors
         if ($request->bookable_type === 'contractor') {
@@ -56,8 +62,33 @@ class BookableController extends Controller
             ]);
         }
 
+        if ($request->bookable_type === 'product') {
+            $request->validate([
+                'brand' => 'required|string|max:255',
+                'serial_number' => 'required|string|max:255',
+                'category_id' => 'required|exists:product_categories,id',
+            ]);
+        }
         // Create the bookable
         $bookable = Bookable::create($validated);
+
+        // If bookable is a contractor, store extra contractor details
+        if ($request->bookable_type === 'contractor') {
+            $bookable->contractor()->create([
+                'role' => $request->role,
+                'phone_number' => $request->phone_number,
+                'email' => $request->email,
+            ]);
+        }
+
+        // If bookable is a product, store extra product details
+        if ($request->bookable_type === 'product') {
+            $bookable->product()->create([
+                'serial_number' => $request->serial_number,
+                'brand' => $request->brand,
+                'product_category_id' => $request->category_id,
+            ]);
+        }
 
         // Save availability slots using the relationship
         foreach ($request->availability as $day => $slots) {
@@ -71,17 +102,6 @@ class BookableController extends Controller
                 }
             }
         }
-
-
-        // If bookable is a contractor, store extra contractor details
-        if ($request->bookable_type === 'contractor') {
-            $bookable->contractor()->create([
-                'role' => $request->role,
-                'phone_number' => $request->phone_number,
-                'email' => $request->email,
-            ]);
-        }
-
         return redirect()->route('bookables.index')->with('success', 'Bookable created successfully!');
     }
 
