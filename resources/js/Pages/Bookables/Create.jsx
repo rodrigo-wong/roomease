@@ -23,6 +23,7 @@ const BookablesCreate = ({ productCategories, contractorRoles }) => {
         name: "",
         category_id: "",
         role_id: "",
+        capacity: 0,
         serial_number: "",
         rate: "",
         description: "",
@@ -71,7 +72,7 @@ const BookablesCreate = ({ productCategories, contractorRoles }) => {
             setData("rate", findContractorRate(data.role_id));
         }
     }, [data.role_id]);
-    
+
     return (
         <AuthenticatedLayout>
             <div className="p-6 bg-white rounded-lg shadow">
@@ -274,6 +275,32 @@ const BookablesCreate = ({ productCategories, contractorRoles }) => {
                             </div>
                         </>
                     )}
+
+                    {/* Room Fields (Only Show if Type is Room) */}
+                    {data.bookable_type === "room" && (
+                        <>
+                            <div>
+                                <label className="block font-medium">
+                                    Capacity
+                                </label>
+                                <input
+                                    type="number"
+                                    className="w-full p-2 border rounded"
+                                    value={data.capacity}
+                                    onChange={(e) =>
+                                        setData("capacity", e.target.value)
+                                    }
+                                    required
+                                />
+                                {errors.capacity && (
+                                    <p className="text-red-500 text-sm">
+                                        {errors.capacity}
+                                    </p>
+                                )}
+                            </div>
+                        </>
+                    )}
+
                     {/* Rate */}
                     <div>
                         <label className="block font-medium">Rate</label>
