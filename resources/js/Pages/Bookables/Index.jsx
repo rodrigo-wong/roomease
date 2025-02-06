@@ -2,27 +2,12 @@ import React, { useState } from "react";
 import { router } from "@inertiajs/react";
 import { Link, usePage } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import ProductTable from "./Partials/ProductTable";
+import ContractorTable from "./Partials/ContractorTable";
 
 const BookablesIndex = ({ products, rooms, contractors }) => {
     // State to track active tab
     const [activeTab, setActiveTab] = useState("products");
-
-    console.log(products[0].product);
-
-    // Function to handle delete
-    const handleDelete = (id, e) => {
-        e.preventDefault();
-        if (confirm("Are you sure you want to delete this bookable?")) {
-            router.delete(route("bookables.destroy", id), {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => {
-                    console.log("Deleted successfully!");
-                },
-            });
-        }
-    };
-
     // Function to get the currently active bookables
     const getBookables = () => {
         switch (activeTab) {
@@ -86,91 +71,12 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                 </div>
 
                 {/* Table */}
-                <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-gray-200">
-                        <thead>
-                            <tr className="bg-gray-100">
-                                {activeTab === "contractors" && (
-                                    <th className="border p-2">Role</th>
-                                )}
-                                {activeTab == "products" && (
-                                    <>
-                                        <th className="border p-2">Category</th>
-                                        <th className="border p-2">Brand</th>
-                                    </>
-                                )}
-                                <th className="border p-2">Name</th>
-                                <th className="border p-2">Description</th>
-                                <th className="border p-2">Rate</th>
-                                <th className="border p-2">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {getBookables().length > 0 ? (
-                                getBookables().map((bookable) => (
-                                    <tr key={bookable.id} className="border-t">
-                                        {activeTab === "contractors" && (
-                                            <td className="border p-2">
-                                                {bookable.contractor?.role}
-                                            </td>
-                                        )}
-                                        {activeTab === "products" && (
-                                            <>
-                                                <td className="border p-2">
-                                                    {bookable.product.category.name}
-                                                </td>
-                                                <td className="border p-2">
-                                                    {bookable.product.brand}
-                                                </td>
-                                            </>
-                                        )}
-                                        <td className="border p-2">
-                                            {bookable.name}
-                                        </td>
-                                        <td className="border p-2">
-                                            {bookable.description}
-                                        </td>
-                                        <td className="border p-2">
-                                            {bookable.rate}
-                                        </td>
-                                        <td className="border p-2 space-x-2">
-                                            <button
-                                                onClick={(e) =>
-                                                    router.get(
-                                                        route(
-                                                            "bookables.edit",
-                                                            bookable.id
-                                                        )
-                                                    )
-                                                }
-                                                className="px-3 py-1 bg-yellow-500 text-white rounded"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                onClick={(e) =>
-                                                    handleDelete(bookable.id, e)
-                                                }
-                                                className="px-3 py-1 bg-red-500 text-white rounded"
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td
-                                        colSpan="4"
-                                        className="border p-4 text-center text-gray-500"
-                                    >
-                                        No {activeTab} found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                {activeTab === "products" && (
+                    <ProductTable products={products} />
+                )}
+                {activeTab === "contractors" && (
+                    <ContractorTable contractors={contractors} />
+                )}
             </div>
         </AuthenticatedLayout>
     );
