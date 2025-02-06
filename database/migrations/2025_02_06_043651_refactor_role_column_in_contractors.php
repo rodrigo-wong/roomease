@@ -13,8 +13,13 @@ return new class extends Migration
     {
         Schema::table('contractors', function (Blueprint $table) {
             //
-            $table->dropColumn('role');
-            $table->foreignId('role_id')->after('id')->constrained('contractor_roles')->onUpdate('cascade')->onDelete('restrict');
+            if (Schema::hasColumn('contractors', 'role')) {
+                $table->dropColumn('role');
+            }
+
+            if (!Schema::hasColumn('contractors', 'role_id')) {
+                $table->foreignId('role_id')->after('id');
+            }
         });
     }
 
