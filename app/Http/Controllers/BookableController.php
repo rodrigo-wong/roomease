@@ -307,7 +307,6 @@ class BookableController extends Controller
      */
     public function getAvailableBookables(Request $request, Bookable $room)
     {
-
         $request->validate([
             'date' => 'required|date_format:Y-m-d',
             'timeslot' => 'required|array',
@@ -319,8 +318,10 @@ class BookableController extends Controller
         $selectedStartTime = $request->timeslot['start_time'];
         $selectedEndTime = $request->timeslot['end_time'];
 
-        // Fetch all bookables that are NOT rooms
-        $availableBookables = Bookable::where('bookable_type', '!=', 'room')->get();
+        // Fetch all bookables that are NOT rooms and eager-load necessary relationships
+        $availableBookables = Bookable::with(['room', 'contractor.role', 'product'])
+            ->where('bookable_type', '!=', 'room')
+            ->get();
 
         // Fetch existing bookings for all non-room bookables on the requested date
         $bookedBookables = OrderBookable::whereDate('start_time', $date)
@@ -345,13 +346,16 @@ class BookableController extends Controller
             return true; // Bookable is available for the selected timeslot
         });
 
+        // Group available bookables by bookable_type
+        $groupedBookables = $matchingBookables->groupBy('bookable_type');
+
         return response()->json([
             'date' => $date,
             'selected_timeslot' => [
                 'start_time' => $selectedStartTime,
                 'end_time' => $selectedEndTime,
             ],
-            'available_bookables' => $matchingBookables->values(),
+            'available_bookables' => $groupedBookables,
         ]);
     }
 }
