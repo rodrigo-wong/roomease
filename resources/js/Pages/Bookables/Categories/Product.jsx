@@ -8,6 +8,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import { Input } from "@mui/material";
 import { router } from "@inertiajs/react";
+
 const Product = () => {
     const [open, setOpen] = useState(false);
     const [category, setCategory] = useState("");
