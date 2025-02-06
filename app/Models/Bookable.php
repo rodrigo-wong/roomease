@@ -26,6 +26,14 @@ class Bookable extends Model
     }
 
     /**
+     * Get the room associated with the bookable.
+     */
+    public function room()
+    {
+        return $this->hasOne(Room::class, 'bookable_id');
+    }
+
+    /**
      * Get the availability for the bookable.
      */
     public function availability()
@@ -67,7 +75,7 @@ class Bookable extends Model
      */
     public function scopeRooms($query)
     {
-        return $query->where('bookable_type', BookableType::ROOM);
+        return $query->where('bookable_type', BookableType::ROOM)->with('room');
     }
 
 
