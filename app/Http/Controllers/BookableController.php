@@ -3,15 +3,17 @@
 namespace App\Http\Controllers;
 
 use Inertia\Inertia;
+use App\Models\Product;
 use App\Models\Bookable;
+use App\Models\Contractor;
 use App\Enums\BookableType;
 use Illuminate\Http\Request;
+use App\Models\OrderBookable;
+use App\Models\ContractorRole;
+use Illuminate\Support\Carbon;
+use App\Models\ProductCategory;
 use Illuminate\Validation\Rule;
 use App\Models\BookableAvailability;
-use Illuminate\Support\Carbon;
-use App\Models\OrderBookable;
-use App\Models\Product;
-use App\Models\ProductCategory;
 
 class BookableController extends Controller
 {
@@ -35,6 +37,7 @@ class BookableController extends Controller
     {
         return Inertia::render('Bookables/Create', [
             'productCategories' => ProductCategory::all(),
+            'contractorRoles' => ContractorRole::all(),
         ]);
     }
 
@@ -46,17 +49,16 @@ class BookableController extends Controller
         $validated = $request->validate([
             // Base validation for all bookables
             'name' => 'required|string|max:255',
-            'rate' => 'nullable|numeric|min:0',
+            'rate' => 'required|nullable|numeric|min:0',
             'description' => 'nullable|string',
             'bookable_type' => ['required', Rule::in(BookableType::values())],
-
         ]);
 
 
         // Additional validation for contractors
         if ($request->bookable_type === 'contractor') {
             $request->validate([
-                'role' => 'required|string|max:255',
+                'role_id' => 'required|exists:contractor_roles,id',
                 'phone_number' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255',
             ]);
@@ -75,7 +77,8 @@ class BookableController extends Controller
         // If bookable is a contractor, store extra contractor details
         if ($request->bookable_type === 'contractor') {
             $bookable->contractor()->create([
-                'role' => $request->role,
+                'name' => $request->name,
+                'role_id' => $request->role_id,
                 'phone_number' => $request->phone_number,
                 'email' => $request->email,
             ]);
@@ -84,9 +87,11 @@ class BookableController extends Controller
         // If bookable is a product, store extra product details
         if ($request->bookable_type === 'product') {
             $bookable->product()->create([
+                'name' => $request->name,
                 'serial_number' => $request->serial_number,
                 'brand' => $request->brand,
                 'product_category_id' => $request->category_id,
+                'description' => $request->description,
             ]);
         }
 
@@ -102,6 +107,7 @@ class BookableController extends Controller
                 }
             }
         }
+
         return redirect()->route('bookables.index')->with('success', 'Bookable created successfully!');
     }
 
