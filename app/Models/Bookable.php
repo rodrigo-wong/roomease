@@ -76,6 +76,6 @@ class Bookable extends Model
      */
     public function scopeProducts($query)
     {
-        return $query->where('bookable_type', BookableType::PRODUCT)->with('product');
+        return $query->where('bookable_type', BookableType::PRODUCT)->with('product.category');
     }
 }
