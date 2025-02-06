@@ -2,6 +2,7 @@ import React from "react";
 import { Inertia } from "@inertiajs/inertia";
 import { Link, useForm } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import ProductCategories from "./Categories/Product";
 
 const daysOfWeek = [
     { id: 0, name: "Sunday" },
@@ -12,9 +13,12 @@ const daysOfWeek = [
     { id: 5, name: "Friday" },
     { id: 6, name: "Saturday" },
 ];
-const BookablesCreate = () => {
+const BookablesCreate = ({ productCategories }) => {
+    console.log(productCategories);
     const { data, setData, post, processing, errors } = useForm({
         name: "",
+        category_id: "",
+        serial_number: "",
         rate: "",
         description: "",
         bookable_type: "product", // Default type
@@ -82,6 +86,89 @@ const BookablesCreate = () => {
                         </select>
                     </div>
 
+                    {/* Product Fields (Only Show if Type is Product) */}
+                    {data.bookable_type === "product" && (
+                        <>
+                            {/* Category */}
+                            <div className="w-1/5">
+                                <label className="block font-medium">
+                                    Category
+                                </label>
+                                <div className="flex gap-2">
+                                    <select
+                                        className="w-full p-2 border rounded"
+                                        value={data.category_id}
+                                        onChange={(e) =>
+                                            setData(
+                                                "category_id",
+                                                e.target.value
+                                            )
+                                        }
+                                        required
+                                    >
+                                        <option value="">
+                                            Select a Category
+                                        </option>
+                                        {productCategories.map((category) => (
+                                            <option
+                                                key={category.id}
+                                                value={category.id}
+                                            >
+                                                {category.name}
+                                            </option>
+                                        ))}
+                                    </select>{" "}
+                                    <ProductCategories className="w-1/5" />
+                                    {errors.category_id && (
+                                        <p className="text-red-500 text-sm">
+                                            {errors.category_id}
+                                        </p>
+                                    )}{" "}
+                                </div>
+                            </div>
+
+                            {/* Brand */}
+                            <div>
+                                <label className="block font-medium">Brand</label>
+                                <input
+
+                                    type="text"
+                                    className="w-full p-2 border rounded"
+                                    value={data.brand}
+                                    onChange={(e) =>
+                                        setData("brand", e.target.value)
+                                    }
+                                    required
+                                />
+                                {errors.brand && (
+                                    <p className="text-red-500 text-sm">
+                                        {errors.brand}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Serial Number */}
+                            <div>
+                                <label className="block font-medium">
+                                    Serial Number
+                                </label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border rounded"
+                                    value={data.serial_number}
+                                    onChange={(e) =>
+                                        setData("serial_number", e.target.value)
+                                    }
+                                    required
+                                />
+                                {errors.serial_number && (
+                                    <p className="text-red-500 text-sm">
+                                        {errors.serial_number}
+                                    </p>
+                                )}
+                            </div>
+                        </>
+                    )}
                     {/* Name */}
                     <div>
                         <label className="block font-medium">Name</label>
@@ -98,7 +185,6 @@ const BookablesCreate = () => {
                             </p>
                         )}
                     </div>
-
                     {/* Contractor Fields (Only Show if Type is Contractor) */}
                     {data.bookable_type === "contractor" && (
                         <>
