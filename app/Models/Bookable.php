@@ -11,7 +11,7 @@ class Bookable extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'rate', 'description', 'bookable_type'];
+    protected $fillable = ['rate', 'bookable_type'];
 
     protected $casts = [
         'bookable_type' => BookableType::class, // Casts bookable_type as Enum
@@ -59,7 +59,7 @@ class Bookable extends Model
      */
     public function scopeContractors($query)
     {
-        return $query->where('bookable_type', BookableType::CONTRACTOR)->with('contractor');
+        return $query->where('bookable_type', BookableType::CONTRACTOR)->with('contractor.role');
     }
 
     /**
