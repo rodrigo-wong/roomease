@@ -4,6 +4,7 @@ import { Link, usePage } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import ProductTable from "./Partials/ProductTable";
 import ContractorTable from "./Partials/ContractorTable";
+import RoomTable from "./Partials/RoomTable";
 
 const BookablesIndex = ({ products, rooms, contractors }) => {
     // State to track active tab
@@ -76,6 +77,9 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                 )}
                 {activeTab === "contractors" && (
                     <ContractorTable contractors={contractors} />
+                )}
+                {activeTab === "rooms" && (
+                    <RoomTable rooms={rooms} />
                 )}
             </div>
         </AuthenticatedLayout>
