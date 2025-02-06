@@ -7,7 +7,7 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
     // State to track active tab
     const [activeTab, setActiveTab] = useState("products");
 
-    console.log(contractors);
+    console.log(products[0].product);
 
     // Function to handle delete
     const handleDelete = (id, e) => {
@@ -22,7 +22,6 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
             });
         }
     };
-    
 
     // Function to get the currently active bookables
     const getBookables = () => {
@@ -32,7 +31,6 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
             case "rooms":
                 return rooms;
             case "contractors":
-                console.log(contractors);
                 return contractors;
             default:
                 return [];
@@ -95,6 +93,12 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                 {activeTab === "contractors" && (
                                     <th className="border p-2">Role</th>
                                 )}
+                                {activeTab == "products" && (
+                                    <>
+                                        <th className="border p-2">Category</th>
+                                        <th className="border p-2">Brand</th>
+                                    </>
+                                )}
                                 <th className="border p-2">Name</th>
                                 <th className="border p-2">Description</th>
                                 <th className="border p-2">Rate</th>
@@ -110,6 +114,16 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                                 {bookable.contractor?.role}
                                             </td>
                                         )}
+                                        {activeTab === "products" && (
+                                            <>
+                                                <td className="border p-2">
+                                                    {bookable.product.category.name}
+                                                </td>
+                                                <td className="border p-2">
+                                                    {bookable.product.brand}
+                                                </td>
+                                            </>
+                                        )}
                                         <td className="border p-2">
                                             {bookable.name}
                                         </td>
@@ -121,10 +135,14 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                         </td>
                                         <td className="border p-2 space-x-2">
                                             <button
-                                                onClick={(e) => router.get(route(
-                                                    "bookables.edit",
-                                                    bookable.id
-                                                ))}
+                                                onClick={(e) =>
+                                                    router.get(
+                                                        route(
+                                                            "bookables.edit",
+                                                            bookable.id
+                                                        )
+                                                    )
+                                                }
                                                 className="px-3 py-1 bg-yellow-500 text-white rounded"
                                             >
                                                 Edit
