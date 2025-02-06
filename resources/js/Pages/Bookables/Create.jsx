@@ -1,8 +1,9 @@
-import React from "react";
-import { Inertia } from "@inertiajs/inertia";
+import React, { useEffect } from "react";
 import { Link, useForm } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import ProductCategories from "./Categories/Product";
+import ContractorRoles from "./Categories/ContractorRoles";
+import { use } from "react";
 
 const daysOfWeek = [
     { id: 0, name: "Sunday" },
@@ -13,18 +14,21 @@ const daysOfWeek = [
     { id: 5, name: "Friday" },
     { id: 6, name: "Saturday" },
 ];
-const BookablesCreate = ({ productCategories }) => {
-    console.log(productCategories);
+const BookablesCreate = ({ productCategories, contractorRoles }) => {
+    const findContractorRate = (id) => {
+        const role = contractorRoles.find((role) => role.id == id);
+        return role ? role.rate : 0;
+    };
     const { data, setData, post, processing, errors } = useForm({
         name: "",
         category_id: "",
+        role_id: "",
         serial_number: "",
         rate: "",
         description: "",
         bookable_type: "product", // Default type
         email: "",
         phone_number: "",
-        role: "",
         availability: daysOfWeek.reduce((acc, day) => {
             acc[day.id] = [{ start_time: "09:00", end_time: "17:00" }];
             return acc;
@@ -62,6 +66,12 @@ const BookablesCreate = ({ productCategories }) => {
         });
     };
 
+    useEffect(() => {
+        if (data.bookable_type === "contractor") {
+            setData("rate", findContractorRate(data.role_id));
+        }
+    }, [data.role_id]);
+    
     return (
         <AuthenticatedLayout>
             <div className="p-6 bg-white rounded-lg shadow">
@@ -129,9 +139,10 @@ const BookablesCreate = ({ productCategories }) => {
 
                             {/* Brand */}
                             <div>
-                                <label className="block font-medium">Brand</label>
+                                <label className="block font-medium">
+                                    Brand
+                                </label>
                                 <input
-
                                     type="text"
                                     className="w-full p-2 border rounded"
                                     value={data.brand}
@@ -188,6 +199,38 @@ const BookablesCreate = ({ productCategories }) => {
                     {/* Contractor Fields (Only Show if Type is Contractor) */}
                     {data.bookable_type === "contractor" && (
                         <>
+                            <div className="w-1/5">
+                                <label className="block font-medium">
+                                    Role
+                                </label>
+                                <div className="flex gap-2">
+                                    <select
+                                        className="w-full p-2 border rounded"
+                                        value={data.role_id}
+                                        onChange={(e) => {
+                                            setData("role_id", e.target.value);
+                                        }}
+                                        required
+                                    >
+                                        <option value="">Select a Role</option>
+                                        {contractorRoles.map((role) => (
+                                            <option
+                                                key={role.id}
+                                                value={role.id}
+                                            >
+                                                {role.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ContractorRoles className="w-1/5" />
+                                    {errors.role_id && (
+                                        <p className="text-red-500 text-sm">
+                                            {errors.role_id}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
                             {/* Email */}
                             <div>
                                 <label className="block font-medium">
@@ -229,34 +272,13 @@ const BookablesCreate = ({ productCategories }) => {
                                     </p>
                                 )}
                             </div>
-
-                            {/* Role */}
-                            <div>
-                                <label className="block font-medium">
-                                    Role
-                                </label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 border rounded"
-                                    value={data.role}
-                                    onChange={(e) =>
-                                        setData("role", e.target.value)
-                                    }
-                                    required
-                                />
-                                {errors.role && (
-                                    <p className="text-red-500 text-sm">
-                                        {errors.role}
-                                    </p>
-                                )}
-                            </div>
                         </>
                     )}
-
                     {/* Rate */}
                     <div>
                         <label className="block font-medium">Rate</label>
                         <input
+                            disabled={data.bookable_type === "contractor"}
                             type="number"
                             className="w-full p-2 border rounded"
                             value={data.rate}
