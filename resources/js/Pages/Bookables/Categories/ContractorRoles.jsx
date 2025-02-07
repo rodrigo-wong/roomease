@@ -50,7 +50,7 @@ const ContractorRoles = () => {
 
     return (
         <React.Fragment>
-            <Button variant="outlined" onClick={handleClickOpen}>
+            <Button variant="outlined" onClick={handleClickOpen} sx= {{ minWidth: 150 }}>
                 + Add Role
             </Button>
             <Dialog
