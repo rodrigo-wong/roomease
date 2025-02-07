@@ -107,7 +107,7 @@ const BookablesCreate = ({ productCategories, contractorRoles }) => {
                                 </label>
                                 <div className="flex gap-2">
                                     <select
-                                        className="w-full p-2 border rounded"
+                                        className="w-full p-2 border rounded min-w-[200px]"
                                         value={data.category_id}
                                         onChange={(e) =>
                                             setData(
