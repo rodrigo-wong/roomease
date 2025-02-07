@@ -54,13 +54,13 @@ const Product = () => {
                     {"Add a new category"}
                 </DialogTitle>
                 <DialogContent>
-                    <DialogContentText id="alert-dialog-description">
-                        <Input
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                            placeholder="Category Name"
+                    <div className="space-y-4">
+                    <Input
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        placeholder="Category Name"
                         />
-                    </DialogContentText>
+                    </div>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleClose}>Cancel</Button>

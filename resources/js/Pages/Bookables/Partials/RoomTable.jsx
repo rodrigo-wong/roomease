@@ -32,14 +32,14 @@ const RoomTable = ({ rooms }) => {
                     {rooms?.map((bookable) => (
                         <tr key={bookable.id}>
                             <td className="border px-4 py-2">
-                                {bookable.room.name}
+                                {bookable?.room?.name}
                             </td>
                             <td className="border px-4 py-2">
-                                {bookable.room.description}
+                                {bookable?.room?.description}
                             </td>
-                            <td className="border px-4 py-2">{bookable.room.capacity}</td>
+                            <td className="border px-4 py-2">{bookable?.room?.capacity}</td>
                             <td className="border px-4 py-2">
-                                {bookable.rate}
+                                {bookable?.rate}
                             </td>
                             <td className="border p-2 space-x-2">
                                 <button

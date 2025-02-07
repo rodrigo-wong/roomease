@@ -34,20 +34,20 @@ const contractorTable = ({ contractors }) => {
                     {contractors.map((bookable) => (
                         <tr key={bookable.id}>
                             <td className="border px-4 py-2">
-                                {bookable.contractor.role.name}
+                                {bookable?.contractor?.role?.name}
                             </td>
                             <td className="border px-4 py-2">
-                                {bookable.contractor.role.description}
+                                {bookable?.contractor?.role?.description}
                             </td>
-                            <td className="border px-4 py-2">{bookable.contractor.name}</td>
+                            <td className="border px-4 py-2">{bookable?.contractor?.name}</td>
                             <td className="border px-4 py-2">
-                                {bookable.contractor.email}
-                            </td>
-                            <td className="border px-4 py-2">
-                                {bookable.contractor.phone_number}
+                                {bookable?.contractor?.email}
                             </td>
                             <td className="border px-4 py-2">
-                                {bookable.rate}
+                                {bookable?.contractor?.phone_number}
+                            </td>
+                            <td className="border px-4 py-2">
+                                {bookable?.rate}
                             </td>
                             <td className="border p-2 space-x-2">
                                 <button

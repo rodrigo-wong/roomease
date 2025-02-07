@@ -42,7 +42,9 @@ const ContractorRoles = () => {
     };
 
     const handleClose = () => {
-        setCategory("");
+        setRole("");
+        setDescription("");
+        setRate("");
         setOpen(false);
     };
 
@@ -61,7 +63,8 @@ const ContractorRoles = () => {
                     {"Add a new role"}
                 </DialogTitle>
                 <DialogContent>
-                    <DialogContentText id="alert-dialog-description">
+                  
+                        <div className="space-y-4">
                         <div>
                             <Label>Role Name</Label>
                             <Input
@@ -89,7 +92,7 @@ const ContractorRoles = () => {
                                 placeholder="Role Rate"
                             />
                         </div>
-                    </DialogContentText>
+                        </div>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleClose}>Cancel</Button>

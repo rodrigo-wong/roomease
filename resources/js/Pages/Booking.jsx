@@ -198,25 +198,27 @@ const Booking = ({ rooms }) => {
                         </h2>
                         <div className="grid grid-cols-2 gap-4">
                             {rooms?.map((bookable) => (
-                                <button
-                                    key={bookable.id}
-                                    onClick={() => setSelectedRoom(bookable)}
-                                    className={`p-3 border rounded ${
-                                        selectedRoom?.id === bookable.id
-                                            ? "border-blue-500 bg-blue-100"
-                                            : "border-gray-300"
-                                    }`}
-                                >
-                                    <h3 className="font-semibold">
-                                        {bookable.room.name}
-                                    </h3>
-                                    <p className="text-sm text-gray-600">
-                                        {bookable.room.description}
-                                    </p>
-                                    <p className="font-bold text-green-600">
-                                        ${bookable.rate} / hour
-                                    </p>
-                                </button>
+                                    bookable?.room && (  
+                                        <button
+                                            key={bookable.id}
+                                            onClick={() => setSelectedRoom(bookable)}
+                                            className={`p-3 border rounded ${
+                                                selectedRoom?.id === bookable.id
+                                                    ? "border-blue-500 bg-blue-100"
+                                                    : "border-gray-300"
+                                            }`}
+                                        >
+                                            <h3 className="font-semibold">
+                                                {bookable.room.name}
+                                            </h3>
+                                            <p className="text-sm text-gray-600">
+                                                {bookable.room.description}
+                                            </p>
+                                            <p className="font-bold text-green-600">
+                                                ${bookable.rate} / hour
+                                            </p>
+                                        </button>
+                                    )
                             ))}
                         </div>
                         {errors.room && (

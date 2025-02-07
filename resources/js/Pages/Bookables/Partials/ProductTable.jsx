@@ -34,20 +34,20 @@ const ProductTable = ({ products }) => {
                     {products?.map((bookable) => (
                         <tr key={bookable.id}>
                             <td className="border px-4 py-2">
-                                {bookable.product.category.name}
+                                {bookable.product?.category?.name}
                             </td>
                             <td className="border px-4 py-2">
-                                {bookable.product.brand}
+                                {bookable?.product?.brand}
                             </td>
-                            <td className="border px-4 py-2">{bookable.product.name}</td>
+                            <td className="border px-4 py-2">{bookable?.product?.name}</td>
                             <td className="border px-4 py-2">
-                                {bookable.product.description}
-                            </td>
-                            <td className="border px-4 py-2">
-                                {bookable.product.serial_number}
+                                {bookable?.product?.description}
                             </td>
                             <td className="border px-4 py-2">
-                                {bookable.rate}
+                                {bookable?.product?.serial_number}
+                            </td>
+                            <td className="border px-4 py-2">
+                                {bookable?.rate}
                             </td>
                             <td className="border p-2 space-x-2">
                                 <button
