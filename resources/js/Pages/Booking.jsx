@@ -2,8 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Inertia } from "@inertiajs/inertia";
 import axios from "axios";
 import GuestLayout from "@/Layouts/GuestLayout";
+import Calendar from 'react-calendar'
+import 'react-calendar/dist/Calendar.css';
 
 const Booking = ({ rooms }) => {
+    const [value, onChange] = useState(new Date());
     const [step, setStep] = useState(1);
     const [selectedRoom, setSelectedRoom] = useState(null);
     const [selectedDate, setSelectedDate] = useState("");
@@ -121,6 +124,19 @@ const Booking = ({ rooms }) => {
         );
     };
 
+    const handleDateChange = (date) => {
+        if (!date) return;
+    
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+    
+        const formattedDate = `${yyyy}-${mm}-${dd}`;
+        setSelectedDate(formattedDate);
+
+    };
+    
+
     // Calculate total cost
     const roomSubtotal = selectedRoom ? selectedRoom.rate * hours : 0;
     const addonsSubtotal = selectedAddons.reduce(
@@ -229,12 +245,16 @@ const Booking = ({ rooms }) => {
                         <h2 className="text-lg font-semibold mb-4">
                             Select a Date
                         </h2>
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="p-2 border border-gray-300 rounded"
-                        />
+                        <div>
+                            <Calendar
+                                onChange={(date) => {
+                                    onChange(date);  // Updates the value for the calendar
+                                    handleDateChange(date);  // Updates selectedDate in the correct format
+                                }}
+                                value={value}
+                            />
+                        </div>
+
                         {errors.date && (
                             <p className="text-red-500">{errors.date}</p>
                         )}
@@ -270,7 +290,7 @@ const Booking = ({ rooms }) => {
                                                 ? "border-blue-500 bg-blue-100"
                                                 : "border-gray-300"
                                         }`}
-                                    >
+                                    > 
                                         {slot.start_time} - {slot.end_time}
                                     </button>
                                 ))}

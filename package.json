@@ -25,6 +25,7 @@
         "@inertiajs/inertia-react": "^0.8.1",
         "build": "^0.1.4",
         "npm": "^11.1.0",
+        "react-calendar": "^5.1.0",
         "run": "^1.5.0",
         "sweetalert2": "^11.15.10"
     }
