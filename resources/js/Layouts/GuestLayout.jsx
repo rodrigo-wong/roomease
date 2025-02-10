@@ -27,7 +27,7 @@ function Header() {
 //Footer Component
 function Footer() {
     return (
-<footer className="bg-gray-50 text-gray-600 w-full mt-8 mb-0 border-t border-gray-200">
+<footer className="bg-gray-50 text-gray-600 w-full border-t border-gray-200 absolute bottom-0 left-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 <div className="flex justify-between items-center text-sm">
                     <div className="flex gap-3">
