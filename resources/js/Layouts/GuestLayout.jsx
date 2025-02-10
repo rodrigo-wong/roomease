@@ -1,5 +1,6 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
 import { Link } from "@inertiajs/react";
+import { Toaster } from "react-hot-toast";
 
 //Header Component
 function Header() {
@@ -59,8 +60,31 @@ function Footer() {
 export default function GuestLayout({ children }) {
     return (
 <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 px-4 pt-20">
-                <Header />
 
+            <Toaster 
+                position="top-center"
+                reverseOrder={false}
+                toastOptions={{
+                    duration: 3000,
+                    style: {
+                        background: '#333',
+                        color: '#fff',
+                    },
+                    success: {
+                        duration: 2000,
+                        style: {
+                            background: 'green',
+                        },
+                    },
+                    error: {
+                        duration: 2000,
+                        style: {
+                            background: 'red',
+                        },
+                    },
+                }}
+            />
+                <Header />
             {/* Booking Card */}
             <div className="w-full max-w-5xl bg-white shadow-lg rounded-lg overflow-hidden">
                 <div className="p-6">{children}</div>
