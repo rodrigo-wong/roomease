@@ -279,10 +279,6 @@ const Booking = ({ rooms }) => {
                                 value={value}
                             />
                         </div>
-
-                        {errors.date && (
-                            <p className="text-red-500">{errors.date}</p>
-                        )}
                     </div>
                 )}
 
