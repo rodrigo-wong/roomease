@@ -1,7 +1,9 @@
-import React from "react";
-import { Inertia } from "@inertiajs/inertia";
+import React, { useEffect } from "react";
 import { Link, useForm } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import ProductCategories from "./Categories/Product";
+import ContractorRoles from "./Categories/ContractorRoles";
+import { use } from "react";
 
 const daysOfWeek = [
     { id: 0, name: "Sunday" },
@@ -12,15 +14,22 @@ const daysOfWeek = [
     { id: 5, name: "Friday" },
     { id: 6, name: "Saturday" },
 ];
-const BookablesCreate = () => {
+const BookablesCreate = ({ productCategories, contractorRoles }) => {
+    const findContractorRate = (id) => {
+        const role = contractorRoles.find((role) => role.id == id);
+        return role ? role.rate : 0;
+    };
     const { data, setData, post, processing, errors } = useForm({
         name: "",
+        category_id: "",
+        role_id: "",
+        capacity: 0,
+        serial_number: "",
         rate: "",
         description: "",
         bookable_type: "product", // Default type
         email: "",
         phone_number: "",
-        role: "",
         availability: daysOfWeek.reduce((acc, day) => {
             acc[day.id] = [{ start_time: "09:00", end_time: "17:00" }];
             return acc;
@@ -58,6 +67,12 @@ const BookablesCreate = () => {
         });
     };
 
+    useEffect(() => {
+        if (data.bookable_type === "contractor") {
+            setData("rate", findContractorRate(data.role_id));
+        }
+    }, [data.role_id]);
+
     return (
         <AuthenticatedLayout>
             <div className="p-6 bg-white rounded-lg shadow">
@@ -82,6 +97,90 @@ const BookablesCreate = () => {
                         </select>
                     </div>
 
+                    {/* Product Fields (Only Show if Type is Product) */}
+                    {data.bookable_type === "product" && (
+                        <>
+                            {/* Category */}
+                            <div className="w-1/5">
+                                <label className="block font-medium">
+                                    Category
+                                </label>
+                                <div className="flex gap-2">
+                                    <select
+                                        className="w-full p-2 border rounded min-w-[200px]"
+                                        value={data.category_id}
+                                        onChange={(e) =>
+                                            setData(
+                                                "category_id",
+                                                e.target.value
+                                            )
+                                        }
+                                        required
+                                    >
+                                        <option value="">
+                                            Select a Category
+                                        </option>
+                                        {productCategories.map((category) => (
+                                            <option
+                                                key={category.id}
+                                                value={category.id}
+                                            >
+                                                {category.name}
+                                            </option>
+                                        ))}
+                                    </select>{" "}
+                                    <ProductCategories className="w-1/5" />
+                                    {errors.category_id && (
+                                        <p className="text-red-500 text-sm">
+                                            {errors.category_id}
+                                        </p>
+                                    )}{" "}
+                                </div>
+                            </div>
+
+                            {/* Brand */}
+                            <div>
+                                <label className="block font-medium">
+                                    Brand
+                                </label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border rounded"
+                                    value={data.brand}
+                                    onChange={(e) =>
+                                        setData("brand", e.target.value)
+                                    }
+                                    required
+                                />
+                                {errors.brand && (
+                                    <p className="text-red-500 text-sm">
+                                        {errors.brand}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Serial Number */}
+                            <div>
+                                <label className="block font-medium">
+                                    Serial Number
+                                </label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border rounded"
+                                    value={data.serial_number}
+                                    onChange={(e) =>
+                                        setData("serial_number", e.target.value)
+                                    }
+                                    required
+                                />
+                                {errors.serial_number && (
+                                    <p className="text-red-500 text-sm">
+                                        {errors.serial_number}
+                                    </p>
+                                )}
+                            </div>
+                        </>
+                    )}
                     {/* Name */}
                     <div>
                         <label className="block font-medium">Name</label>
@@ -98,10 +197,41 @@ const BookablesCreate = () => {
                             </p>
                         )}
                     </div>
-
                     {/* Contractor Fields (Only Show if Type is Contractor) */}
                     {data.bookable_type === "contractor" && (
                         <>
+                            <div className="w-1/5">
+                                <label className="block font-medium">
+                                    Role
+                                </label>
+                                <div className="flex gap-2">
+                                    <select
+                                        className="w-full p-2 border rounded min-w-[200px]"
+                                        value={data.role_id}
+                                        onChange={(e) => {
+                                            setData("role_id", e.target.value);
+                                        }}
+                                        required
+                                    >
+                                        <option value="">Select a Role</option>
+                                        {contractorRoles.map((role) => (
+                                            <option
+                                                key={role.id}
+                                                value={role.id}
+                                            >
+                                                {role.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ContractorRoles className="w-1/5" />
+                                    {errors.role_id && (
+                                        <p className="text-red-500 text-sm">
+                                            {errors.role_id}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
                             {/* Email */}
                             <div>
                                 <label className="block font-medium">
@@ -143,24 +273,28 @@ const BookablesCreate = () => {
                                     </p>
                                 )}
                             </div>
+                        </>
+                    )}
 
-                            {/* Role */}
+                    {/* Room Fields (Only Show if Type is Room) */}
+                    {data.bookable_type === "room" && (
+                        <>
                             <div>
                                 <label className="block font-medium">
-                                    Role
+                                    Capacity
                                 </label>
                                 <input
-                                    type="text"
+                                    type="number"
                                     className="w-full p-2 border rounded"
-                                    value={data.role}
+                                    value={data.capacity}
                                     onChange={(e) =>
-                                        setData("role", e.target.value)
+                                        setData("capacity", e.target.value)
                                     }
                                     required
                                 />
-                                {errors.role && (
+                                {errors.capacity && (
                                     <p className="text-red-500 text-sm">
-                                        {errors.role}
+                                        {errors.capacity}
                                     </p>
                                 )}
                             </div>
@@ -171,6 +305,7 @@ const BookablesCreate = () => {
                     <div>
                         <label className="block font-medium">Rate</label>
                         <input
+                            disabled={data.bookable_type === "contractor"}
                             type="number"
                             className="w-full p-2 border rounded"
                             value={data.rate}

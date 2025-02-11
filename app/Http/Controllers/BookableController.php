@@ -3,13 +3,17 @@
 namespace App\Http\Controllers;
 
 use Inertia\Inertia;
+use App\Models\Product;
 use App\Models\Bookable;
+use App\Models\Contractor;
 use App\Enums\BookableType;
 use Illuminate\Http\Request;
+use App\Models\OrderBookable;
+use App\Models\ContractorRole;
+use Illuminate\Support\Carbon;
+use App\Models\ProductCategory;
 use Illuminate\Validation\Rule;
 use App\Models\BookableAvailability;
-use Illuminate\Support\Carbon;
-use App\Models\OrderBookable;
 
 class BookableController extends Controller
 {
@@ -18,6 +22,7 @@ class BookableController extends Controller
      */
     public function index()
     {
+        //dd(Bookable::contractors()->get());
         return Inertia::render('Bookables/Index', [
             'products' => fn() => Bookable::products()->get(),
             'rooms' => fn() => Bookable::rooms()->get(),
@@ -30,7 +35,10 @@ class BookableController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Bookables/Create');
+        return Inertia::render('Bookables/Create', [
+            'productCategories' => ProductCategory::all(),
+            'contractorRoles' => ContractorRole::all(),
+        ]);
     }
 
     /**
@@ -38,25 +46,68 @@ class BookableController extends Controller
      */
     public function store(Request $request)
     {
-        // Base validation for all bookables
         $validated = $request->validate([
+            // Base validation for all bookables
             'name' => 'required|string|max:255',
-            'rate' => 'nullable|numeric|min:0',
+            'rate' => 'required|nullable|numeric|min:0',
             'description' => 'nullable|string',
-            'bookable_type' => ['required', Rule::in(BookableType::values())]
+            'bookable_type' => ['required', Rule::in(BookableType::values())],
         ]);
+
 
         // Additional validation for contractors
         if ($request->bookable_type === 'contractor') {
             $request->validate([
-                'role' => 'required|string|max:255',
+                'role_id' => 'required|exists:contractor_roles,id',
                 'phone_number' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255',
             ]);
         }
 
+        if ($request->bookable_type === 'product') {
+            $request->validate([
+                'brand' => 'required|string|max:255',
+                'serial_number' => 'required|string|max:255',
+                'category_id' => 'required|exists:product_categories,id',
+            ]);
+        }
+
+        if ($request->bookable_type === 'room') {
+            $request->validate([
+                'capacity' => 'required|integer|min:1',
+            ]);
+        }
         // Create the bookable
         $bookable = Bookable::create($validated);
+
+        // If bookable is a contractor, store extra contractor details
+        if ($request->bookable_type === 'contractor') {
+            $bookable->contractor()->create([
+                'name' => $request->name,
+                'role_id' => $request->role_id,
+                'phone_number' => $request->phone_number,
+                'email' => $request->email,
+            ]);
+        }
+
+        // If bookable is a product, store extra product details
+        if ($request->bookable_type === 'product') {
+            $bookable->product()->create([
+                'name' => $request->name,
+                'serial_number' => $request->serial_number,
+                'brand' => $request->brand,
+                'product_category_id' => $request->category_id,
+                'description' => $request->description,
+            ]);
+        }
+
+        if ($request->bookable_type === 'room') {
+            $bookable->room()->create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'capacity' => $request->capacity,
+            ]);
+        }
 
         // Save availability slots using the relationship
         foreach ($request->availability as $day => $slots) {
@@ -69,16 +120,6 @@ class BookableController extends Controller
                     ]);
                 }
             }
-        }
-
-
-        // If bookable is a contractor, store extra contractor details
-        if ($request->bookable_type === 'contractor') {
-            $bookable->contractor()->create([
-                'role' => $request->role,
-                'phone_number' => $request->phone_number,
-                'email' => $request->email,
-            ]);
         }
 
         return redirect()->route('bookables.index')->with('success', 'Bookable created successfully!');
@@ -266,7 +307,6 @@ class BookableController extends Controller
      */
     public function getAvailableBookables(Request $request, Bookable $room)
     {
-        
         $request->validate([
             'date' => 'required|date_format:Y-m-d',
             'timeslot' => 'required|array',
@@ -278,8 +318,10 @@ class BookableController extends Controller
         $selectedStartTime = $request->timeslot['start_time'];
         $selectedEndTime = $request->timeslot['end_time'];
 
-        // Fetch all bookables that are NOT rooms
-        $availableBookables = Bookable::where('bookable_type', '!=', 'room')->get();
+        // Fetch all bookables that are NOT rooms and eager-load necessary relationships
+        $availableBookables = Bookable::with(['room', 'contractor.role', 'product'])
+            ->where('bookable_type', '!=', 'room')
+            ->get();
 
         // Fetch existing bookings for all non-room bookables on the requested date
         $bookedBookables = OrderBookable::whereDate('start_time', $date)
@@ -304,13 +346,16 @@ class BookableController extends Controller
             return true; // Bookable is available for the selected timeslot
         });
 
+        // Group available bookables by bookable_type
+        $groupedBookables = $matchingBookables->groupBy('bookable_type');
+
         return response()->json([
             'date' => $date,
             'selected_timeslot' => [
                 'start_time' => $selectedStartTime,
                 'end_time' => $selectedEndTime,
             ],
-            'available_bookables' => $matchingBookables->values(),
+            'available_bookables' => $groupedBookables,
         ]);
     }
 }

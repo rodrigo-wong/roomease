@@ -4,7 +4,18 @@ import axios from "axios";
 import GuestLayout from "@/Layouts/GuestLayout";
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css';
-
+import {
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    Typography,
+    Button,
+    Card,
+    CardContent,
+    CardActions,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import toast from "react-hot-toast";
 const Booking = ({ rooms }) => {
     const [value, onChange] = useState(new Date());
     const [step, setStep] = useState(1);
@@ -16,13 +27,12 @@ const Booking = ({ rooms }) => {
     const [selectedAddons, setSelectedAddons] = useState([]);
     const [loadingTimeslots, setLoadingTimeslots] = useState(false);
     const [hours, setHours] = useState(2);
-    const [errors, setErrors] = useState({}); 
 
-     // New state for user information in checkout step
-     const [firstName, setFirstName] = useState("");
-     const [lastName, setLastName] = useState("");
-     const [email, setEmail] = useState("");
-     const [phoneNumber, setPhoneNumber] = useState("");
+    // New state for user information in checkout step
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
 
     // Fetch available time slots when room and date are selected
     useEffect(() => {
@@ -60,6 +70,7 @@ const Booking = ({ rooms }) => {
                     },
                 })
                 .then((response) => {
+                    console.log(response.data.available_bookables);
                     setAvailableAddons(response.data.available_bookables);
                 })
                 .catch((error) => {
@@ -70,39 +81,54 @@ const Booking = ({ rooms }) => {
 
     // Move to the next step with validation
     const nextStep = () => {
-        let newErrors = {};
 
         if (step === 1) {
-            if (!selectedRoom) newErrors.room = "Please select a room.";
-            if (!hours || hours < 2)
-                newErrors.hours = "Minimum booking is 2 hours.";
+            if (!selectedRoom) {
+                toast.error("Please select a room.");
+                return;
+            }
+        
+            if (!hours || hours < 2) {
+                toast.error("Minimum of two hours required.");
+                return;
+            }
+         
         }
 
         if (step === 2) {
-            if (!selectedDate) newErrors.date = "Please select a date.";
+            if (!selectedDate) {
+                toast.error("Please select a date.");
+                return;
+            }
         }
 
         if (step === 3) {
-            if (selectedTimeslots.length === 0)
-                newErrors.timeslots = "Please select a time slot.";
+            if (selectedTimeslots.length === 0){
+                toast.error("Please select a time slot.");
+                return;
+            }
         }
 
         if (step === 6) {
-            if (!firstName.trim()) newErrors.firstName = "First name is required.";
-            if (!lastName.trim()) newErrors.lastName = "Last name is required.";
+            if (!firstName.trim()){
+                toast.error("First name is required.");
+                return;
+            }
+            if (!lastName.trim()){
+                toast.error("Last name is required.");
+                return;
+            } 
             if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                newErrors.email = "Valid email is required.";
+                toast.error("Valid email is required.");
+                return;
             }
             if (!phoneNumber.trim() || !/^\d{10,15}$/.test(phoneNumber)) {
-                newErrors.phoneNumber = "Valid phone number is required.";
+                toast.error("Valid phone number is required.");
+                return;
             }
         }
-
-        setErrors(newErrors);
-
-        if (Object.keys(newErrors).length === 0) {
             setStep(step + 1);
-        }
+        
     };
 
     // Move to the previous step
@@ -168,7 +194,10 @@ const Booking = ({ rooms }) => {
                         "Review",
                         "Checkout",
                     ].map((label, index, array) => (
-                        <div key={index} className="flex items-center justify-center w-full">
+                        <div
+                            key={index}
+                            className="flex items-center justify-center w-full"
+                        >
                             <div
                                 className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-white 
                         ${step === index + 1 ? "bg-blue-500" : "bg-gray-300"}`}
@@ -198,31 +227,30 @@ const Booking = ({ rooms }) => {
                             Select a Room
                         </h2>
                         <div className="grid grid-cols-2 gap-4">
-                            {rooms?.map((room) => (
-                                <button
-                                    key={room.id}
-                                    onClick={() => setSelectedRoom(room)}
-                                    className={`p-3 border rounded ${
-                                        selectedRoom?.id === room.id
-                                            ? "border-blue-500 bg-blue-100"
-                                            : "border-gray-300"
-                                    }`}
-                                >
-                                    <h3 className="font-semibold">
-                                        {room.name}
-                                    </h3>
-                                    <p className="text-sm text-gray-600">
-                                        {room.description}
-                                    </p>
-                                    <p className="font-bold text-green-600">
-                                        ${room.rate} / hour
-                                    </p>
-                                </button>
+                            {rooms?.map((bookable) => (
+                                    bookable?.room && (  
+                                        <button
+                                            key={bookable.id}
+                                            onClick={() => setSelectedRoom(bookable)}
+                                            className={`p-3 border rounded ${
+                                                selectedRoom?.id === bookable.id
+                                                    ? "border-blue-500 bg-blue-100"
+                                                    : "border-gray-300"
+                                            }`}
+                                        >
+                                            <h3 className="font-semibold">
+                                                {bookable.room.name}
+                                            </h3>
+                                            <p className="text-sm text-gray-600">
+                                                {bookable.room.description}
+                                            </p>
+                                            <p className="font-bold text-green-600">
+                                                ${bookable.rate} / hour
+                                            </p>
+                                        </button>
+                                    )
                             ))}
                         </div>
-                        {errors.room && (
-                            <p className="text-red-500">{errors.room}</p>
-                        )}
                         <label className="block mt-4 font-semibold">
                             How many hours do you need the room for?
                         </label>
@@ -233,9 +261,6 @@ const Booking = ({ rooms }) => {
                             onChange={(e) => setHours(Number(e.target.value))}
                             className="p-2 border border-gray-300 rounded"
                         />
-                        {errors.hours && (
-                            <p className="text-red-500">{errors.hours}</p>
-                        )}
                     </div>
                 )}
 
@@ -296,47 +321,195 @@ const Booking = ({ rooms }) => {
                                 ))}
                             </div>
                         )}
-                        {errors.timeslots && (
-                            <p className="text-red-500">{errors.timeslots}</p>
-                        )}
                     </div>
                 )}
                 {/* Step 4: Show Available Add-ons */}
                 {step === 4 && (
                     <div>
-                        <h2 className="text-lg font-semibold mb-4">
+                        <Typography variant="h6" gutterBottom>
                             Select Add-ons
-                        </h2>
-                        {availableAddons.length > 0 ? (
-                            <div className="grid grid-cols-2 gap-4">
-                                {availableAddons?.map((addon) => (
-                                    <button
-                                        key={addon.id}
-                                        onClick={() =>
-                                            handleAddonSelection(addon)
-                                        }
-                                        className={`p-3 border rounded text-left ${
-                                            selectedAddons.includes(addon)
-                                                ? "border-green-500 bg-green-100"
-                                                : "border-gray-300"
-                                        }`}
-                                    >
-                                        <h3 className="font-semibold">
-                                            {addon.name}
-                                        </h3>
-                                        <p className="text-sm text-gray-600">
-                                            {addon.description}
-                                        </p>
-                                        <p className="font-bold text-green-600">
-                                            ${addon.rate} / hour
-                                        </p>
-                                    </button>
-                                ))}
+                        </Typography>
+
+                        {availableAddons.product?.length > 0 ||
+                        availableAddons.contractor?.length > 0 ? (
+                            <div>
+                                {/* Products Accordion */}
+                                {availableAddons.product?.length > 0 && (
+                                    <Accordion>
+                                        <AccordionSummary
+                                            expandIcon={<ExpandMoreIcon />}
+                                        >
+                                            <Typography variant="subtitle1">
+                                                Products
+                                            </Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {availableAddons.product.map(
+                                                    (addon) => (
+                                                        <Card
+                                                            key={addon.id}
+                                                            className={`border ${
+                                                                selectedAddons.includes(
+                                                                    addon
+                                                                )
+                                                                    ? "border-green-500"
+                                                                    : "border-gray-300"
+                                                            }`}
+                                                        >
+                                                            <CardContent>
+                                                                <Typography
+                                                                    variant="subtitle1"
+                                                                    fontWeight="bold"
+                                                                >
+                                                                    {
+                                                                        addon
+                                                                            .product
+                                                                            .name
+                                                                    }
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="textSecondary"
+                                                                >
+                                                                    {
+                                                                        addon
+                                                                            .product
+                                                                            .description
+                                                                    }
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant="body1"
+                                                                    color="success.main"
+                                                                    fontWeight="bold"
+                                                                >
+                                                                    $
+                                                                    {addon.rate}{" "}
+                                                                    / hour
+                                                                </Typography>
+                                                            </CardContent>
+                                                            <CardActions>
+                                                                <Button
+                                                                    fullWidth
+                                                                    variant={
+                                                                        selectedAddons.includes(
+                                                                            addon
+                                                                        )
+                                                                            ? "contained"
+                                                                            : "outlined"
+                                                                    }
+                                                                    color="primary"
+                                                                    onClick={() =>
+                                                                        handleAddonSelection(
+                                                                            addon
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {selectedAddons.includes(
+                                                                        addon
+                                                                    )
+                                                                        ? "Selected"
+                                                                        : "Select"}
+                                                                </Button>
+                                                            </CardActions>
+                                                        </Card>
+                                                    )
+                                                )}
+                                            </div>
+                                        </AccordionDetails>
+                                    </Accordion>
+                                )}
+
+                                {/* Contractors Accordion */}
+                                {availableAddons.contractor?.length > 0 && (
+                                    <Accordion>
+                                        <AccordionSummary
+                                            expandIcon={<ExpandMoreIcon />}
+                                        >
+                                            <Typography variant="subtitle1">
+                                                Contractors
+                                            </Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {availableAddons.contractor.map(
+                                                    (addon) => (
+                                                        <Card
+                                                            key={addon.id}
+                                                            className={`border ${
+                                                                selectedAddons.includes(
+                                                                    addon
+                                                                )
+                                                                    ? "border-green-500"
+                                                                    : "border-gray-300"
+                                                            }`}
+                                                        >
+                                                            <CardContent>
+                                                                <Typography
+                                                                    variant="subtitle1"
+                                                                    fontWeight="bold"
+                                                                >
+                                                                    {
+                                                                        addon
+                                                                            .contractor
+                                                                            .role
+                                                                            .name
+                                                                    }
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="textSecondary"
+                                                                >
+                                                                    {
+                                                                        addon.description
+                                                                    }
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant="body1"
+                                                                    color="success.main"
+                                                                    fontWeight="bold"
+                                                                >
+                                                                    $
+                                                                    {addon.rate}{" "}
+                                                                    / hour
+                                                                </Typography>
+                                                            </CardContent>
+                                                            <CardActions>
+                                                                <Button
+                                                                    fullWidth
+                                                                    variant={
+                                                                        selectedAddons.includes(
+                                                                            addon
+                                                                        )
+                                                                            ? "contained"
+                                                                            : "outlined"
+                                                                    }
+                                                                    color="primary"
+                                                                    onClick={() =>
+                                                                        handleAddonSelection(
+                                                                            addon
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {selectedAddons.includes(
+                                                                        addon
+                                                                    )
+                                                                        ? "Selected"
+                                                                        : "Select"}
+                                                                </Button>
+                                                            </CardActions>
+                                                        </Card>
+                                                    )
+                                                )}
+                                            </div>
+                                        </AccordionDetails>
+                                    </Accordion>
+                                )}
                             </div>
                         ) : (
-                            <p className="text-gray-500">
+                            <Typography variant="body2" color="textSecondary">
                                 No add-ons available for this booking.
-                            </p>
+                            </Typography>
                         )}
                     </div>
                 )}
@@ -375,7 +548,7 @@ const Booking = ({ rooms }) => {
                                                 {bookable.bookable_type.toUpperCase()}
                                             </td>
                                             <td className="border p-2">
-                                                {bookable.name}
+                                                {bookable.room?.name || bookable.product?.name || bookable.contractor?.role.name}
                                             </td>
                                             <td className="border p-2">
                                                 ${bookable.rate}
@@ -441,11 +614,6 @@ const Booking = ({ rooms }) => {
                                     }
                                     className="p-2 border border-gray-300 rounded w-full"
                                 />
-                                {errors.lastName && (
-                                    <p className="text-red-500">
-                                        {errors.lastName}
-                                    </p>
-                                )}
                             </div>
                         </div>
 
@@ -458,9 +626,6 @@ const Booking = ({ rooms }) => {
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="p-2 border border-gray-300 rounded w-full"
                             />
-                            {errors.email && (
-                                <p className="text-red-500">{errors.email}</p>
-                            )}
                         </div>
 
                         {/* Phone Number */}
@@ -475,11 +640,6 @@ const Booking = ({ rooms }) => {
                                 className="p-2 border border-gray-300 rounded w-full"
                                 placeholder="Enter phone number"
                             />
-                            {errors.phoneNumber && (
-                                <p className="text-red-500">
-                                    {errors.phoneNumber}
-                                </p>
-                            )}
                         </div>
                     </div>
                 )}

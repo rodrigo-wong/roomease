@@ -11,7 +11,7 @@ class Bookable extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'rate', 'description', 'bookable_type'];
+    protected $fillable = ['rate', 'bookable_type'];
 
     protected $casts = [
         'bookable_type' => BookableType::class, // Casts bookable_type as Enum
@@ -23,6 +23,14 @@ class Bookable extends Model
     public function contractor()
     {
         return $this->hasOne(Contractor::class, 'bookable_id');
+    }
+
+    /**
+     * Get the room associated with the bookable.
+     */
+    public function room()
+    {
+        return $this->hasOne(Room::class, 'bookable_id');
     }
 
     /**
@@ -41,6 +49,11 @@ class Bookable extends Model
         return $this->hasMany(OrderBookable::class);
     }
 
+    public function product()
+    {
+        return $this->hasOne(Product::class);
+    }
+
     /**
      * Get the payments associated with the bookable.
      */
@@ -54,15 +67,15 @@ class Bookable extends Model
      */
     public function scopeContractors($query)
     {
-        return $query->where('bookable_type', BookableType::CONTRACTOR)->with('contractor');
-    }    
+        return $query->where('bookable_type', BookableType::CONTRACTOR)->with('contractor.role');
+    }
 
     /**
      * Get the room associated with the bookable.
      */
     public function scopeRooms($query)
     {
-        return $query->where('bookable_type', BookableType::ROOM);
+        return $query->where('bookable_type', BookableType::ROOM)->with('room');
     }
 
 
@@ -71,6 +84,6 @@ class Bookable extends Model
      */
     public function scopeProducts($query)
     {
-        return $query->where('bookable_type', BookableType::PRODUCT);
+        return $query->where('bookable_type', BookableType::PRODUCT)->with('product.category');
     }
 }
