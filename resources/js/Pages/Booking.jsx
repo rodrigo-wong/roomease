@@ -16,6 +16,8 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import toast from "react-hot-toast";
+import { router } from "@inertiajs/react";
+
 const Booking = ({ rooms }) => {
     const [value, onChange] = useState(new Date());
     const [step, setStep] = useState(1);
@@ -27,12 +29,49 @@ const Booking = ({ rooms }) => {
     const [selectedAddons, setSelectedAddons] = useState([]);
     const [loadingTimeslots, setLoadingTimeslots] = useState(false);
     const [hours, setHours] = useState(2);
-
-    // New state for user information in checkout step
+    const[isSubmitting, setIsSubmitting] = useState(false);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
+
+    
+    const handleSubmit = () => {
+        setIsSubmitting(true);
+        
+        const bookingData = {
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+            phone_number: phoneNumber,
+            room_id: selectedRoom.id,
+            date: selectedDate,
+            timeslots: selectedTimeslots,
+            addons: selectedAddons.map(addon => addon.id),
+            total_amount: totalAmount,
+            hours: hours
+        };
+
+        router.post(route('booking.store'), bookingData, {
+            onSuccess: () => {
+                toast.success('Booking created successfully!');
+                router.push('/');
+
+
+            },
+            onError: (errors) => {
+                setIsSubmitting(false);
+                Object.values(errors).forEach(error => {
+                    toast.error(error);
+                });
+            },
+            onFinish: () => {
+                setIsSubmitting(false);
+            }
+        });
+    };
+
+
 
     // Fetch available time slots when room and date are selected
     useEffect(() => {
@@ -142,13 +181,13 @@ const Booking = ({ rooms }) => {
     };
 
     // Handle add-ons selection
-    const handleAddonSelection = (addon) => {
-        setSelectedAddons((prev) =>
-            prev.includes(addon)
-                ? prev.filter((a) => a !== addon)
-                : [...prev, addon]
-        );
-    };
+const handleAddonSelection = (addon) => {
+  setSelectedAddons((prev) =>
+    prev.some((a) => a.id === addon.id)
+      ? prev.filter((a) => a.id !== addon.id) // Remove if already selected
+      : [...prev, addon] // Add if not selected
+  );
+};
 
     const handleDateChange = (date) => {
         if (!date) return;
@@ -171,19 +210,12 @@ const Booking = ({ rooms }) => {
     );
     const totalAmount = roomSubtotal + addonsSubtotal;
 
-    // Handle booking submission
-    const handleSubmit = () => {
-        Inertia.post(route("booking.store"), {
-            room_id: selectedRoom.id,
-            date: selectedDate,
-            timeslots: selectedTimeslots,
-            addons: selectedAddons,
-        });
-    };
+
 
     return (
         <GuestLayout>
             <div className="relative p-6 max-w-5xl mx-auto bg-white rounded-lg shadow min-h-[500px] flex flex-col">
+                
                 {/* Stepper */}
                 <div className="flex items-center justify-center mb-6 relative">
                     {[
@@ -321,7 +353,7 @@ const Booking = ({ rooms }) => {
                 )}
                 {/* Step 4: Show Available Add-ons */}
                 {step === 4 && (
-                    <div>
+                     <div className="overflow-y-auto pb-20" style={{ maxHeight: "calc(100vh - 300px)" }}>
                         <Typography variant="h6" gutterBottom>
                             Select Add-ons
                         </Typography>
@@ -589,12 +621,8 @@ const Booking = ({ rooms }) => {
                                         setFirstName(e.target.value)
                                     }
                                     className="p-2 border border-gray-300 rounded w-full"
+                                    required
                                 />
-                                {errors.firstName && (
-                                    <p className="text-red-500">
-                                        {errors.firstName}
-                                    </p>
-                                )}
                             </div>
 
                             {/* Last Name */}
@@ -609,6 +637,7 @@ const Booking = ({ rooms }) => {
                                         setLastName(e.target.value)
                                     }
                                     className="p-2 border border-gray-300 rounded w-full"
+                                    required
                                 />
                             </div>
                         </div>
@@ -621,6 +650,7 @@ const Booking = ({ rooms }) => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="p-2 border border-gray-300 rounded w-full"
+                                required
                             />
                         </div>
 
@@ -635,13 +665,14 @@ const Booking = ({ rooms }) => {
                                 onChange={(e) => setPhoneNumber(e.target.value)}
                                 className="p-2 border border-gray-300 rounded w-full"
                                 placeholder="Enter phone number"
+                                required
                             />
                         </div>
                     </div>
                 )}
 
                 {/* Navigation Buttons Fixed at Bottom */}
-                <div className="absolute bottom-0 left-0 w-full flex justify-between p-4 border-t bg-white">
+                <div className="sticky bottom-0 left-0 w-full flex justify-between p-4 border-t mt-4 mb-5 bg-white">
                     <button
                         onClick={prevStep}
                         className="px-4 py-2 bg-gray-300 rounded"
@@ -651,11 +682,14 @@ const Booking = ({ rooms }) => {
                     </button>
                     {step === 6 ? (
                         <button
-                            onClick={handleSubmit}
-                            className="px-4 py-2 bg-green-500 text-white rounded"
-                        >
-                            Confirm Booking
-                        </button>
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className={`px-4 py-2 rounded ${
+                          isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-green-500 text-white"
+                        }`}
+                      >
+                        {isSubmitting ? "Submitting..." : "Confirm Booking"}
+                      </button>
                     ) : (
                         <button
                             onClick={nextStep}

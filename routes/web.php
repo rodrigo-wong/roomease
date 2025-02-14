@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BookableController;
 use App\Http\Controllers\ContractorRoleController;
 use App\Http\Controllers\ProductCategoryController;
+use App\Http\Controllers\BookingController;
 
 Route::get('/', function () {
     return Inertia::render('Booking', [
@@ -25,6 +26,8 @@ Route::get('/dashboard', function () {
 Route::get('/test', function () {
     return Inertia::render('Test');
 })->name('test');
+
+Route::Post('/booking', [BookingController::class, 'store'])->name('booking.store');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

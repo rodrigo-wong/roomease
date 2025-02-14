@@ -27,7 +27,7 @@ function Header() {
 //Footer Component
 function Footer() {
     return (
-<footer className="bg-gray-50 text-gray-600 w-full border-t border-gray-200 absolute bottom-0 left-0">
+<footer className="bg-gray-50 text-gray-600 w-full border-t border-gray-200 fixed bottom-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 <div className="flex justify-between items-center text-sm">
                     <div className="flex gap-3">
@@ -84,10 +84,10 @@ export default function GuestLayout({ children }) {
                     },
                 }}
             />
-                <Header />
+            <Header />
             {/* Booking Card */}
             <div className="w-full max-w-5xl bg-white shadow-lg rounded-lg overflow-hidden">
-                <div className="p-6">{children}</div>
+                <div>{children}</div>
             </div>
 
         

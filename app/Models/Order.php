@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Order extends Model
 {
-    protected $fillable = ['user_id', 'total_amount', 'status'];
+    protected $fillable = ['customer_id', 'total_amount', 'status'];
 
     protected $casts = [
-        'status' => OrderStatus::class, 
+        'status' => OrderStatus::class,
     ];
 
     /**
@@ -24,10 +24,10 @@ class Order extends Model
     }
 
     /**
-     * The user who created this order.
+     * The customer who created this order.
      */
-    public function user(): BelongsTo
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Customer::class);
     }
 }
