@@ -4,6 +4,7 @@ import axios from "axios";
 import GuestLayout from "@/Layouts/GuestLayout";
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css';
+import '../../css/ReactCalenderOverride.css';
 import {
     Accordion,
     AccordionSummary,
@@ -360,7 +361,7 @@ const handleAddonSelection = (addon) => {
 
                         {availableAddons.product?.length > 0 ||
                         availableAddons.contractor?.length > 0 ? (
-                            <div>
+                            <div style={{ maxHeight: "275px", overflowY: "auto" }}>
                                 {/* Products Accordion */}
                                 {availableAddons.product?.length > 0 && (
                                     <Accordion>
