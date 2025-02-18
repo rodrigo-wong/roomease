@@ -4,6 +4,7 @@ import axios from "axios";
 import GuestLayout from "@/Layouts/GuestLayout";
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css';
+import '../../css/ReactCalenderOverride.css';
 import {
     Accordion,
     AccordionSummary,
@@ -279,10 +280,6 @@ const Booking = ({ rooms }) => {
                                 value={value}
                             />
                         </div>
-
-                        {errors.date && (
-                            <p className="text-red-500">{errors.date}</p>
-                        )}
                     </div>
                 )}
 
@@ -332,7 +329,7 @@ const Booking = ({ rooms }) => {
 
                         {availableAddons.product?.length > 0 ||
                         availableAddons.contractor?.length > 0 ? (
-                            <div>
+                            <div style={{ maxHeight: "275px", overflowY: "auto" }}>
                                 {/* Products Accordion */}
                                 {availableAddons.product?.length > 0 && (
                                     <Accordion>
