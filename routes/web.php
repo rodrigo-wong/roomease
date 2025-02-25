@@ -27,7 +27,7 @@ Route::get('/test', function () {
     return Inertia::render('Test');
 })->name('test');
 
-Route::Post('/booking', [BookingController::class, 'store'])->name('booking.store');
+Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
