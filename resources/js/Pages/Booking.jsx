@@ -89,6 +89,7 @@ const Booking = ({ rooms }) => {
                 })
                 .then((response) => {
                     setAvailableTimeslots(response.data.available_slots);
+                    console.log(response.data.available_slots);
                 })
                 .catch((error) => {
                     console.error("Error fetching available times:", error);
