@@ -13,7 +13,6 @@ class BookingController extends Controller
 {
     public function store(Request $request)
     {
-        //dd($request->all());
         try {
             $validated = $request->validate([
                 'first_name' => 'required|string|max:255',
