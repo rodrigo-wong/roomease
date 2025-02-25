@@ -4,10 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class OrderBookable extends Model
 {
-    protected $fillable = ['order_id', 'bookable_id', 'quantity', 'start_time', 'end_time'];
+    protected $fillable = [
+        'order_id',
+        'bookable_id',
+        'bookable_type', 
+        'quantity',
+        'status',
+        'start_time',
+        'end_time'
+    ];
 
     /**
      * Get the associated Order.
@@ -18,10 +27,10 @@ class OrderBookable extends Model
     }
 
     /**
-     * Get the associated Bookable (Contractor, Room, or Product).
+     * Get the associated polymorphic bookable (Bookables, or ContractorRole).
      */
-    public function bookable(): BelongsTo
+    public function bookable(): MorphTo
     {
-        return $this->belongsTo(Bookable::class);
+        return $this->morphTo();
     }
 }
