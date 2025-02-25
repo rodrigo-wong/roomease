@@ -13,6 +13,7 @@ use App\Models\ContractorRole;
 use Illuminate\Support\Carbon;
 use App\Models\ProductCategory;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 use App\Models\BookableAvailability;
 
 class BookableController extends Controller
@@ -139,91 +140,151 @@ class BookableController extends Controller
      */
     public function edit(Bookable $bookable)
     {
+        $availability = $bookable->availability()
+            ->get()
+            ->groupBy('day_of_week')
+            ->map(function ($slots) {
+                return $slots->map(function ($slot) {
+                    return [
+                        'start_time' => $slot->start_time,
+                        'end_time' => $slot->end_time,
+                    ];
+                });
+            });
         if ($bookable->bookable_type === BookableType::CONTRACTOR) {
             $bookable->load('contractor');
+            if ($bookable->contractor) {
+                $contractorData = $bookable->contractor->toArray();
+                foreach ($contractorData as $key => $value) {
+                    $bookable->setAttribute($key, $value);
+                }
+            }
+            $bookable->unsetRelation('contractor');
         }
-
-        // Load bookable availability
-        $bookable->load('availability');
-
+    
+        if ($bookable->bookable_type === BookableType::PRODUCT) {
+            $bookable->load('product');
+            if ($bookable->product) {
+                $productData = $bookable->product->toArray();
+                foreach ($productData as $key => $value) {
+                    $bookable->setAttribute($key, $value);
+                }
+            }
+            $bookable->unsetRelation('product');
+        }
+    
+        if ($bookable->bookable_type === BookableType::ROOM) {
+            $bookable->load('room');
+            if ($bookable->room) {
+                $roomData = $bookable->room->toArray();
+                foreach ($roomData as $key => $value) {
+                    $bookable->setAttribute($key, $value);
+                }
+            }
+            $bookable->unsetRelation('room');
+        }
         return Inertia::render('Bookables/Edit', [
-            'bookable' => $bookable
+            'bookable' => $bookable,
+            'availability' => $availability->toArray(),
+            'productCategories' => ProductCategory::all(),
+            'contractorRoles' => ContractorRole::all(),
         ]);
     }
+    
 
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Bookable $bookable)
     {
+        // Validate base fields
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'rate' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
-            'email' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value) . '|nullable|string|email|max:255',
-            'phone_number' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value) . '|nullable|string|max:255',
-            'role' => Rule::requiredIf($bookable->bookable_type === BookableType::CONTRACTOR->value) . '|nullable|string|max:255',
-            'availability' => 'nullable|array',
+            'bookable_type' => ['required', Rule::in(BookableType::values())],
         ]);
-
-        // Update bookable details
-        $bookable->update($validated);
-
-        // Update contractor details if applicable
-        if ($bookable->bookable_type === BookableType::CONTRACTOR) {
-            $bookable->contractor->update([
-                'role' => $request->role,
-                'phone_number' => $request->phone_number,
-                'email' => $request->email,
+    
+        // Validate type-specific fields, similar to store
+        if ($bookable->bookable_type === 'contractor') {
+            $request->validate([
+                'role_id' => 'required|exists:contractor_roles,id',
+                'phone_number' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255',
             ]);
         }
-
-        // Convert availability array to a flat structure with `day_of_week`
-        $newAvailabilities = collect($request->availability ?? [])
-            ->map(function ($slots, $dayOfWeek) {
-                return collect($slots)->map(function ($slot) use ($dayOfWeek) {
-                    return [
-                        'day_of_week' => $dayOfWeek,
+        if ($bookable->bookable_type === 'product') {
+            $request->validate([
+                'brand' => 'required|string|max:255',
+                'serial_number' => 'required|string|max:255',
+                'category_id' => 'required|exists:product_categories,id',
+            ]);
+        }
+        if ($bookable->bookable_type === 'room') {
+            $request->validate([
+                'capacity' => 'required|integer|min:1',
+            ]);
+        }
+    
+        // Update base bookable
+        $bookable->update($validated);
+    
+        // Update type-specific details using updateOrCreate
+        if ($bookable->bookable_type === 'contractor') {
+            $bookable->contractor()->updateOrCreate(
+                ['bookable_id' => $bookable->id],
+                [
+                    'name' => $request->name,
+                    'role_id' => $request->role_id,
+                    'phone_number' => $request->phone_number,
+                    'email' => $request->email,
+                ]
+            );
+        }
+    
+        if ($bookable->bookable_type === 'product') {
+            $bookable->product()->updateOrCreate(
+                ['bookable_id' => $bookable->id],
+                [
+                    'name' => $request->name,
+                    'serial_number' => $request->serial_number,
+                    'brand' => $request->brand,
+                    'product_category_id' => $request->category_id,
+                    'description' => $request->description,
+                ]
+            );
+        }
+    
+        if ($bookable->bookable_type === 'room') {
+            $bookable->room()->updateOrCreate(
+                ['bookable_id' => $bookable->id],
+                [
+                    'name' => $request->name,
+                    'description' => $request->description,
+                    'capacity' => $request->capacity,
+                ]
+            );
+        }
+    
+        // Delete all existing availability slots
+        $bookable->availability()->delete();
+    
+        // Re-create availability slots, following the same structure as in store
+        foreach ($request->availability as $day => $slots) {
+            foreach ($slots as $slot) {
+                if (!empty($slot['start_time']) && !empty($slot['end_time'])) {
+                    $bookable->availability()->create([
+                        'day_of_week' => $day,
                         'start_time' => $slot['start_time'],
                         'end_time' => $slot['end_time'],
-                    ];
-                });
-            })
-            ->collapse();
-
-
-        // Load existing availabilities
-        $existingAvailabilities = $bookable->availability->keyBy(function ($availability) {
-            return "{$availability->day_of_week}-{$availability->start_time}-{$availability->end_time}";
-        });
-
-        // Delete old availabilities that were removed
-        $existingAvailabilities->each(function ($availability) use ($newAvailabilities) {
-            $exists = $newAvailabilities->contains(function ($slot) use ($availability) {
-                return $slot['day_of_week'] == $availability->day_of_week &&
-                    $slot['start_time'] == $availability->start_time &&
-                    $slot['end_time'] == $availability->end_time;
-            });
-
-            if (!$exists) {
-                $availability->delete();
-            }
-        });
-
-        // Add new availability slots
-        foreach ($newAvailabilities as $slot) {
-            if (!empty($slot['start_time']) && !empty($slot['end_time'])) {
-                BookableAvailability::updateOrCreate([
-                    'bookable_id' => $bookable->id,
-                    'day_of_week' => $slot['day_of_week'],
-                    'start_time' => $slot['start_time'],
-                    'end_time' => $slot['end_time'],
-                ]);
+                    ]);
+                }
             }
         }
-
-        return redirect()->route('bookables.index')->with('success', 'Bookable updated successfully!');
-    }
+    
+        return redirect()->route('bookables.index')
+            ->with('success', 'Bookable updated successfully!');
+    }    
 
     /**
      * Remove the specified resource from storage.
@@ -262,10 +323,11 @@ class BookableController extends Controller
             ->whereDate('start_time', $date)
             ->get()
             ->map(fn($order) => [
-                'start_time' => $order->start_time->format('H:i'),
-                'end_time' => $order->end_time->format('H:i'),
+                'start_time' => $order->start_time,
+                'end_time' => $order->end_time,
             ]);
 
+        Log::info($bookedSlots);
         // Break available slots into 30-minute intervals
         $availableSlots = collect();
 
@@ -283,9 +345,17 @@ class BookableController extends Controller
                 }
 
                 // Check if this booking period is fully available (no conflicts)
-                $conflict = $bookedSlots->contains(
-                    fn($booked) => ($slotStart < $booked['end_time']) && ($slotEnd > $booked['start_time'])
-                );
+                $conflict = $bookedSlots->contains(function ($booked) use ($slotStart, $slotEnd, $date) {
+                    // Convert booked times to Carbon instances
+                    $bookedStart = Carbon::parse($booked['start_time']);
+                    $bookedEnd = Carbon::parse($booked['end_time']);
+                    // Convert the slot times (assuming $slotStart and $slotEnd are strings in H:i format on $date)
+                    $slotStartCarbon = Carbon::parse($date . ' ' . $slotStart);
+                    $slotEndCarbon = Carbon::parse($date . ' ' . $slotEnd);
+
+                    return $slotStartCarbon->lt($bookedEnd) && $slotEndCarbon->gt($bookedStart);
+                });
+
 
                 if (!$conflict) {
                     $availableSlots->push([
@@ -298,7 +368,7 @@ class BookableController extends Controller
 
         return response()->json([
             'date' => $date,
-            'available_slots' => $availableSlots->values(),
+            'available_slots' => $availableSlots,
         ]);
     }
 
@@ -313,75 +383,85 @@ class BookableController extends Controller
             'timeslot.start_time' => 'required|date_format:H:i',
             'timeslot.end_time' => 'required|date_format:H:i|after:timeslot.start_time',
         ]);
-
+    
         $date = $request->date;
         $selectedStartTime = $request->timeslot['start_time'];
         $selectedEndTime = $request->timeslot['end_time'];
-
+    
+        // Create Carbon instances for the selected timeslot by combining with the date.
+        $selectedStart = Carbon::parse($date . ' ' . $selectedStartTime);
+        $selectedEnd = Carbon::parse($date . ' ' . $selectedEndTime);
+    
         // Fetch all bookables that are NOT rooms and eager-load necessary relationships
         $availableBookables = Bookable::with(['room', 'contractor.role', 'product'])
             ->where('bookable_type', '!=', 'room')
             ->get();
-
+    
         // Fetch existing bookings for all non-room bookables on the requested date
         $bookedBookables = OrderBookable::whereDate('start_time', $date)
             ->get()
             ->groupBy('bookable_id'); // Group by bookable ID for faster lookup
-
+    
+        Log::info($bookedBookables);
+        Log::info('Selected timeslot: ' . $selectedStart->toDateTimeString() . ' - ' . $selectedEnd->toDateTimeString());
+    
         // Filter only bookables that are not booked for the selected timeslot
-        $matchingBookables = $availableBookables->filter(function ($bookable) use ($bookedBookables, $selectedStartTime, $selectedEndTime) {
+        $matchingBookables = $availableBookables->filter(function ($bookable) use ($bookedBookables, $selectedStart, $selectedEnd) {
             if ($bookedBookables->has($bookable->id)) {
                 $existingBookings = $bookedBookables->get($bookable->id);
-
+                Log::info('Existing bookings for ' . $bookable->id);
                 foreach ($existingBookings as $booking) {
-                    if (
-                        ($selectedStartTime < $booking->end_time->format('H:i')) &&
-                        ($selectedEndTime > $booking->start_time->format('H:i'))
-                    ) {
+                    $bookingStart = Carbon::parse($booking->start_time);
+                    $bookingEnd = Carbon::parse($booking->end_time);
+    
+                    // Check for overlap using Carbon's comparison methods
+                    if ($selectedStart->lte($bookingEnd) && $selectedEnd->gte($bookingStart)) {
                         return false; // Conflict found, bookable is already taken
                     }
                 }
             }
-
+    
             return true; // Bookable is available for the selected timeslot
         });
-
+    
         // First, group the matching bookables by type
         $groupedBookables = $matchingBookables->groupBy('bookable_type');
-
+    
         // Map each contractor to a simpler array structure.
         // Here we extract role_id and role_name separately.
-        $contractors = collect($groupedBookables['contractor'])->map(function ($contractor) {
-            return [
-                'id' => $contractor->id,
-                'role_id' => $contractor->contractor->role->id,
-                'role_name' => $contractor->contractor->role->name,
-                'role_rate' => $contractor->contractor->role->rate,
-                'role_description' => $contractor->contractor->role->description,
-                'email' => $contractor->contractor->email,
-            ];
-        });
-        
-        // Group by role_id (a scalar value) and add a quantity for each group.
-        $groupedBookables['contractor'] = $contractors->groupBy('role_id')
-        ->map(function ($group, $roleId) {
-            $first = $group->first();
-            return [
-                'role' => $roleId,
-                'role_name' => $first['role_name'] ?? null,
-                'role_description' => $first['role_description'] ?? null,
-                'quantity' => $group->count(),
-                'rate' => $first['role_rate'] ?? null,
-                'contractors' => $group->pluck('email'),
-            ];
-        })
-        ->values();
-
+        if ($groupedBookables->has('contractor')) {
+            $contractors = collect($groupedBookables['contractor'])->map(function ($contractor) {
+                return [
+                    'id' => $contractor->id,
+                    'role_id' => $contractor->contractor->role->id,
+                    'role_name' => $contractor->contractor->role->name,
+                    'role_rate' => $contractor->contractor->role->rate,
+                    'role_description' => $contractor->contractor->role->description,
+                    'email' => $contractor->contractor->email,
+                ];
+            });
+    
+            // Group by role_id (a scalar value) and add a quantity for each group.
+            $groupedBookables['contractor'] = $contractors->groupBy('role_id')
+                ->map(function ($group, $roleId) {
+                    $first = $group->first();
+                    return [
+                        'role' => $roleId,
+                        'role_name' => $first['role_name'] ?? null,
+                        'role_description' => $first['role_description'] ?? null,
+                        'quantity' => $group->count(),
+                        'rate' => $first['role_rate'] ?? null,
+                        'contractors' => $group->pluck('email'),
+                    ];
+                })
+                ->values();
+        }
+    
         return response()->json([
             'date' => $date,
             'selected_timeslot' => [
-                'start_time' => $selectedStartTime,
-                'end_time' => $selectedEndTime,
+                'start_time' => $selectedStart->toTimeString(),
+                'end_time' => $selectedEnd->toTimeString(),
             ],
             'available_bookables' => $groupedBookables,
         ]);
