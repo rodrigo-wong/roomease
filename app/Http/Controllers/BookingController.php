@@ -2,17 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\Room;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\Customer;
-use App\Models\OrderBookable;
 use App\Enums\OrderStatus;
-
+use Illuminate\Http\Request;
+use App\Models\OrderBookable;
+use App\Models\ContractorRole;
+use App\Mail\OrderConfirmation;
+use App\Enums\OrderBookableStatus;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class BookingController extends Controller
 {
     public function store(Request $request)
     {
+        dd($request->all());
         try {
             $validated = $request->validate([
                 'first_name' => 'required|string|max:255',
@@ -48,28 +55,44 @@ class BookingController extends Controller
             OrderBookable::create([
                 'order_id' => $order->id,
                 'bookable_id' => $validated['room_id'],
+                'bookable_type' => Room::class,
                 'quantity' => 1,
+                'status' => OrderBookableStatus::CONFIRMED,
                 'start_time' => $validated['date'] . ' ' . $validated['timeslots'][0],
                 'end_time' => $validated['date'] . ' ' . $validated['timeslots'][1],
             ]);
 
-            //Create addon bookings if any
+            $contractorEmails = [];
+            // Create addon bookings if any
             if (!empty($validated['addons'])) {
-                foreach ($validated['addons'] as $addonId) {
-                    OrderBookable::create([
+                foreach ($validated['addons'] as $addon) {
+                    $orderData = [
                         'order_id' => $order->id,
-                        'bookable_id' => $addonId,
+                        'bookable_id' => $addon['bookable_type'] === 'product' ? $addon['id'] : $addon['role'],
+                        'bookable_type' => $addon['bookable_type'] === 'product' ? Product::class : ContractorRole::class,
                         'quantity' => 1,
+                        'status' => $addon['bookable_type'] === 'product' ? OrderBookableStatus::CONFIRMED : OrderBookableStatus::PENDING,
                         'start_time' => $validated['date'] . ' ' . $validated['timeslots'][0],
                         'end_time' => $validated['date'] . ' ' . $validated['timeslots'][1],
-                    ]);
+                    ];
+
+                    $quantity = isset($addon['quantity']) ? $addon['quantity'] : 1;
+                    for ($i = 0; $i < $quantity; $i++) {
+                        OrderBookable::create($orderData);
+                    }
+                    if($addon['bookable_type'] === 'contractor') {
+                        $contractorEmails[] = ContractorRole::find($addon['role'])->contractor->email;
+                    }
                 }
             }
+
+            Mail::to($customer->email)->send(new OrderConfirmation($order));
 
 
 
             return back()->with('success', 'Booking created successfully!');
         } catch (\Exception $e) {
+            Log::error($e->getMessage());
             return back()->withErrors([
                 'error' => 'Failed to create booking: ' . $e->getMessage()
             ]);
