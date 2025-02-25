@@ -346,8 +346,36 @@ class BookableController extends Controller
             return true; // Bookable is available for the selected timeslot
         });
 
-        // Group available bookables by bookable_type
+        // First, group the matching bookables by type
         $groupedBookables = $matchingBookables->groupBy('bookable_type');
+
+        // Map each contractor to a simpler array structure.
+        // Here we extract role_id and role_name separately.
+        $contractors = collect($groupedBookables['contractor'])->map(function ($contractor) {
+            return [
+                'id' => $contractor->id,
+                'role_id' => $contractor->contractor->role->id,
+                'role_name' => $contractor->contractor->role->name,
+                'role_rate' => $contractor->contractor->role->rate,
+                'role_description' => $contractor->contractor->role->description,
+                'email' => $contractor->contractor->email,
+            ];
+        });
+        
+        // Group by role_id (a scalar value) and add a quantity for each group.
+        $groupedBookables['contractor'] = $contractors->groupBy('role_id')
+        ->map(function ($group, $roleId) {
+            $first = $group->first();
+            return [
+                'role' => $roleId,
+                'role_name' => $first['role_name'] ?? null,
+                'role_description' => $first['role_description'] ?? null,
+                'quantity' => $group->count(),
+                'rate' => $first['role_rate'] ?? null,
+                'contractors' => $group->pluck('email'),
+            ];
+        })
+        ->values();
 
         return response()->json([
             'date' => $date,
