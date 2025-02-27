@@ -94,8 +94,6 @@ class BookingController extends Controller
                 }
             }
 
-            dd('done');
-
             return back()->with('success', 'Booking created successfully!');
         // } catch (\Exception $e) {
         //     Log::error($e->getMessage());
