@@ -21,7 +21,7 @@ class BookingController extends Controller
     public function store(Request $request)
     {
         // dd($request->all());
-        // try {
+        try {
             $validated = $request->validate([
                 'first_name' => 'required|string|max:255',
                 'last_name' => 'required|string|max:255',
@@ -87,7 +87,7 @@ class BookingController extends Controller
                 }
             }
 
-            // Mail::to($customer->email)->send(new OrderConfirmation($order));
+            Mail::to($customer->email)->send(new OrderConfirmation($order));
             foreach ($contractorEmails as $contractorType) {
                 foreach ($contractorType['emails'] as $email) {
                     Mail::to($email)->send(new ContractorConfirmation($order, $contractorType['role'], $email));
@@ -95,11 +95,11 @@ class BookingController extends Controller
             }
 
             return back()->with('success', 'Booking created successfully!');
-        // } catch (\Exception $e) {
-        //     Log::error($e->getMessage());
-        //     return back()->withErrors([
-        //         'error' => 'Failed to create booking: ' . $e->getMessage()
-        //     ]);
-        // }
+        } catch (\Exception $e) {
+            Log::error($e->getMessage());
+            return back()->withErrors([
+                'error' => 'Failed to create booking: ' . $e->getMessage()
+            ]);
+        }
     }
 }
