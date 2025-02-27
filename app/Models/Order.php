@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Enums\OrderBookableStatus;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,4 +32,13 @@ class Order extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    public function isCompleted(): bool
+    {
+        return $this->orderBookables()->get()->every(function ($orderBookable) {
+            return $orderBookable->status === OrderBookableStatus::CONFIRMED->value;
+        });
+        
+    }
+    
 }
