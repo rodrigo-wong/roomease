@@ -9,6 +9,7 @@ use App\Http\Controllers\BookableController;
 use App\Http\Controllers\ContractorRoleController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\ContractorController;
 
 Route::get('/', function () {
     return Inertia::render('Booking', [
@@ -23,9 +24,9 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('/test', function () {
-    return Inertia::render('Test');
-})->name('test');
+Route::get('/contractor/confirmation', [ContractorController::class, 'confirm'])
+    ->name('contractor.confirmation')
+    ->middleware('signed');
 
 Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
 
