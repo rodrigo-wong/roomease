@@ -20,6 +20,6 @@
 
     <p>We appreciate your business and hope you enjoy our services!</p>
 
-    <p>Best regards,<br>Room Booking App</p>
+    <p>Best regards,<br>Roomease Team</p>
 </body>
 </html>
