@@ -13,14 +13,15 @@ use App\Models\ContractorRole;
 use App\Mail\OrderConfirmation;
 use App\Enums\OrderBookableStatus;
 use Illuminate\Support\Facades\Log;
+use App\Mail\ContractorConfirmation;
 use Illuminate\Support\Facades\Mail;
 
 class BookingController extends Controller
 {
     public function store(Request $request)
     {
-        dd($request->all());
-        try {
+        // dd($request->all());
+        // try {
             $validated = $request->validate([
                 'first_name' => 'required|string|max:255',
                 'last_name' => 'required|string|max:255',
@@ -80,22 +81,27 @@ class BookingController extends Controller
                     for ($i = 0; $i < $quantity; $i++) {
                         OrderBookable::create($orderData);
                     }
-                    if($addon['bookable_type'] === 'contractor') {
-                        $contractorEmails[] = ContractorRole::find($addon['role'])->contractor->email;
+                    if ($addon['bookable_type'] === 'contractor') {
+                        $contractorEmails[] = ['role' => ContractorRole::find($addon['role']), 'emails' => $addon['emails']];
                     }
                 }
             }
 
-            Mail::to($customer->email)->send(new OrderConfirmation($order));
+            // Mail::to($customer->email)->send(new OrderConfirmation($order));
+            foreach ($contractorEmails as $contractorType) {
+                foreach ($contractorType['emails'] as $email) {
+                    Mail::to($email)->send(new ContractorConfirmation($order, $contractorType['role'], $email));
+                }
+            }
 
-
+            dd('done');
 
             return back()->with('success', 'Booking created successfully!');
-        } catch (\Exception $e) {
-            Log::error($e->getMessage());
-            return back()->withErrors([
-                'error' => 'Failed to create booking: ' . $e->getMessage()
-            ]);
-        }
+        // } catch (\Exception $e) {
+        //     Log::error($e->getMessage());
+        //     return back()->withErrors([
+        //         'error' => 'Failed to create booking: ' . $e->getMessage()
+        //     ]);
+        // }
     }
 }
