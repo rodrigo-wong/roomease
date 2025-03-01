@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Inertia } from "@inertiajs/inertia";
 import { Link, useForm } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import ContractorRoles from "./Categories/ContractorRoles";
 
 const daysOfWeek = [
     { id: 0, name: "Sunday" },
@@ -13,26 +14,42 @@ const daysOfWeek = [
     { id: 6, name: "Saturday" },
 ];
 
-const BookablesEdit = ({ bookable, availability, productCategories = [], contractorRoles = [] }) => {
+const BookablesEdit = ({
+    bookable,
+    availability,
+    productCategories = [],
+    contractorRoles = [],
+}) => {
     console.log(bookable);
     const { data, setData, put, processing, errors } = useForm({
         name: bookable.name,
         rate: bookable.rate,
         description: bookable.description || "",
         bookable_type: bookable.bookable_type,
-        // For contractor type (flattened fields)
+        // For contractor type, using role_id for consistency
         email: bookable.email || "",
         phone_number: bookable.phone_number || "",
-        role: bookable.role || "",
-        // For product type (flattened fields)
+        role_id: bookable.role_id || "",
+        // For product type
         category_id: bookable.product_category_id || "",
         brand: bookable.brand || "",
         serial_number: bookable.serial_number || "",
-        // For room type (flattened fields)
+        // For room type
         capacity: bookable.capacity || "",
-        // Availability is now passed in as a prop (grouped by day_of_week)
+        // Availability grouped by day_of_week
         availability: availability,
     });
+
+    const findContractorRate = (id) => {
+        const role = contractorRoles.find((role) => role.id == id);
+        return role ? role.rate : 0;
+    };
+
+    useEffect(() => {
+        if (data.bookable_type === "contractor") {
+            setData("rate", findContractorRate(data.role_id));
+        }
+    }, [data.role_id]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -73,7 +90,9 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Bookable Type (Disabled) */}
                     <div>
-                        <label className="block font-medium">Bookable Type</label>
+                        <label className="block font-medium">
+                            Bookable Type
+                        </label>
                         <select
                             className="w-full p-2 border rounded bg-gray-200 cursor-not-allowed"
                             value={data.bookable_type}
@@ -96,7 +115,9 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                             required
                         />
                         {errors.name && (
-                            <p className="text-red-500 text-sm">{errors.name}</p>
+                            <p className="text-red-500 text-sm">
+                                {errors.name}
+                            </p>
                         )}
                     </div>
 
@@ -105,19 +126,29 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                         <>
                             {/* Product Fields */}
                             <div className="w-1/5">
-                                <label className="block font-medium">Category</label>
+                                <label className="block font-medium">
+                                    Category
+                                </label>
                                 <div className="flex gap-2">
                                     <select
                                         className="w-full p-2 border rounded min-w-[200px]"
                                         value={data.category_id}
                                         onChange={(e) =>
-                                            setData("category_id", e.target.value)
+                                            setData(
+                                                "category_id",
+                                                e.target.value
+                                            )
                                         }
                                         required
                                     >
-                                        <option value="">Select a Category</option>
+                                        <option value="">
+                                            Select a Category
+                                        </option>
                                         {productCategories.map((category) => (
-                                            <option key={category.id} value={category.id}>
+                                            <option
+                                                key={category.id}
+                                                value={category.id}
+                                            >
                                                 {category.name}
                                             </option>
                                         ))}
@@ -131,21 +162,29 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                             </div>
 
                             <div>
-                                <label className="block font-medium">Brand</label>
+                                <label className="block font-medium">
+                                    Brand
+                                </label>
                                 <input
                                     type="text"
                                     className="w-full p-2 border rounded"
                                     value={data.brand}
-                                    onChange={(e) => setData("brand", e.target.value)}
+                                    onChange={(e) =>
+                                        setData("brand", e.target.value)
+                                    }
                                     required
                                 />
                                 {errors.brand && (
-                                    <p className="text-red-500 text-sm">{errors.brand}</p>
+                                    <p className="text-red-500 text-sm">
+                                        {errors.brand}
+                                    </p>
                                 )}
                             </div>
 
                             <div>
-                                <label className="block font-medium">Serial Number</label>
+                                <label className="block font-medium">
+                                    Serial Number
+                                </label>
                                 <input
                                     type="text"
                                     className="w-full p-2 border rounded"
@@ -167,20 +206,60 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                     {data.bookable_type === "contractor" && (
                         <>
                             {/* Contractor Fields */}
+                            <div className="w-1/5">
+                                <label className="block font-medium">
+                                    Role
+                                </label>
+                                <div className="flex gap-2">
+                                    <select
+                                        className="w-full p-2 border rounded min-w-[200px]"
+                                        value={data.role_id}
+                                        onChange={(e) =>
+                                            setData("role_id", e.target.value)
+                                        }
+                                        required
+                                    >
+                                        <option value="">Select a Role</option>
+                                        {contractorRoles.map((role) => (
+                                            <option
+                                                key={role.id}
+                                                value={role.id}
+                                            >
+                                                {role.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ContractorRoles className="w-1/5" />
+                                    {errors.role_id && (
+                                        <p className="text-red-500 text-sm">
+                                            {errors.role_id}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
                             <div>
-                                <label className="block font-medium">Email</label>
+                                <label className="block font-medium">
+                                    Email
+                                </label>
                                 <input
                                     type="email"
                                     className="w-full p-2 border rounded"
                                     value={data.email}
-                                    onChange={(e) => setData("email", e.target.value)}
+                                    onChange={(e) =>
+                                        setData("email", e.target.value)
+                                    }
+                                    required
                                 />
                                 {errors.email && (
-                                    <p className="text-red-500 text-sm">{errors.email}</p>
+                                    <p className="text-red-500 text-sm">
+                                        {errors.email}
+                                    </p>
                                 )}
                             </div>
                             <div>
-                                <label className="block font-medium">Phone Number</label>
+                                <label className="block font-medium">
+                                    Phone Number
+                                </label>
                                 <input
                                     type="tel"
                                     className="w-full p-2 border rounded"
@@ -188,23 +267,12 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                                     onChange={(e) =>
                                         setData("phone_number", e.target.value)
                                     }
+                                    required
                                 />
                                 {errors.phone_number && (
                                     <p className="text-red-500 text-sm">
                                         {errors.phone_number}
                                     </p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="block font-medium">Role</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2 border rounded"
-                                    value={data.role}
-                                    onChange={(e) => setData("role", e.target.value)}
-                                />
-                                {errors.role && (
-                                    <p className="text-red-500 text-sm">{errors.role}</p>
                                 )}
                             </div>
                         </>
@@ -214,7 +282,9 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                         <>
                             {/* Room Fields */}
                             <div>
-                                <label className="block font-medium">Capacity</label>
+                                <label className="block font-medium">
+                                    Capacity
+                                </label>
                                 <input
                                     type="number"
                                     className="w-full p-2 border rounded"
@@ -237,6 +307,7 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                     <div>
                         <label className="block font-medium">Rate</label>
                         <input
+                            disabled={data.bookable_type === "contractor"}
                             type="number"
                             className="w-full p-2 border rounded"
                             value={data.rate}
@@ -244,7 +315,9 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                             required
                         />
                         {errors.rate && (
-                            <p className="text-red-500 text-sm">{errors.rate}</p>
+                            <p className="text-red-500 text-sm">
+                                {errors.rate}
+                            </p>
                         )}
                     </div>
 
@@ -267,7 +340,9 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
 
                     {/* Availability Table */}
                     <div>
-                        <h3 className="text-lg font-semibold mb-2">Availability</h3>
+                        <h3 className="text-lg font-semibold mb-2">
+                            Availability
+                        </h3>
                         <table className="w-full border-collapse border border-gray-300">
                             <thead>
                                 <tr className="bg-gray-100">
@@ -279,15 +354,27 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                             <tbody>
                                 {daysOfWeek.map((day) => (
                                     <tr key={day.id}>
-                                        <td className="border p-2 font-semibold">{day.name}</td>
+                                        <td className="border p-2 font-semibold">
+                                            {day.name}
+                                        </td>
                                         <td className="border p-2">
-                                            {(data.availability[day.id] || []).map((slot, index) => (
-                                                <div key={index} className="flex items-center space-x-2 mb-2">
+                                            {(
+                                                data.availability[day.id] || []
+                                            ).map((slot, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center space-x-2 mb-2"
+                                                >
                                                     <input
                                                         type="time"
                                                         value={slot.start_time}
                                                         onChange={(e) =>
-                                                            updateTimeSlot(day.id, index, "start_time", e.target.value)
+                                                            updateTimeSlot(
+                                                                day.id,
+                                                                index,
+                                                                "start_time",
+                                                                e.target.value
+                                                            )
                                                         }
                                                         className="border p-2 rounded"
                                                         required
@@ -297,14 +384,24 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                                                         type="time"
                                                         value={slot.end_time}
                                                         onChange={(e) =>
-                                                            updateTimeSlot(day.id, index, "end_time", e.target.value)
+                                                            updateTimeSlot(
+                                                                day.id,
+                                                                index,
+                                                                "end_time",
+                                                                e.target.value
+                                                            )
                                                         }
                                                         className="border p-2 rounded"
                                                         required
                                                     />
                                                     <button
                                                         type="button"
-                                                        onClick={() => removeTimeSlot(day.id, index)}
+                                                        onClick={() =>
+                                                            removeTimeSlot(
+                                                                day.id,
+                                                                index
+                                                            )
+                                                        }
                                                         className="px-2 py-1 bg-red-500 text-white rounded"
                                                     >
                                                         ❌
@@ -315,7 +412,9 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                                         <td className="border p-2">
                                             <button
                                                 type="button"
-                                                onClick={() => addTimeSlot(day.id)}
+                                                onClick={() =>
+                                                    addTimeSlot(day.id)
+                                                }
                                                 className="px-2 py-1 bg-blue-500 text-white rounded"
                                             >
                                                 + Add Slot
@@ -336,7 +435,10 @@ const BookablesEdit = ({ bookable, availability, productCategories = [], contrac
                         >
                             {processing ? "Saving..." : "Update"}
                         </button>
-                        <Link href={route("bookables.index")} className="px-4 py-2 bg-gray-500 text-white rounded">
+                        <Link
+                            href={route("bookables.index")}
+                            className="px-4 py-2 bg-gray-500 text-white rounded"
+                        >
                             Cancel
                         </Link>
                     </div>
