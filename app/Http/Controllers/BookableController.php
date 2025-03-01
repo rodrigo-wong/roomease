@@ -245,7 +245,6 @@ class BookableController extends Controller
         }
 
         if ($bookable->bookable_type === BookableType::PRODUCT) {
-            dd('here');
             $bookable->product()->updateOrCreate(
                 ['bookable_id' => $bookable->id],
                 [
