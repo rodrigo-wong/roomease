@@ -86,4 +86,26 @@ class Bookable extends Model
     {
         return $query->where('bookable_type', BookableType::PRODUCT)->with('product.category');
     }
+
+    /**
+     * Delete related records when deleting a bookable
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($bookable) {
+            // Delete availability entries
+            $bookable->availability()->delete();
+
+            // Delete related records based on type
+            if ($bookable->bookable_type === BookableType::PRODUCT) {
+                $bookable->product()->delete();
+            } elseif ($bookable->bookable_type === BookableType::ROOM) {
+                $bookable->room()->delete();
+            } elseif ($bookable->bookable_type === BookableType::CONTRACTOR) {
+                $bookable->contractor()->delete();
+            }
+        });
+    }
 }

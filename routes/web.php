@@ -10,6 +10,7 @@ use App\Http\Controllers\ContractorRoleController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\ContractorController;
+use App\Http\Controllers\OrderController;
 
 Route::get('/', function () {
     return Inertia::render('Booking', [
@@ -20,9 +21,14 @@ Route::get('/time-slots/{room}', [BookableController::class, 'getAvailableTimes'
 Route::get('/available/bookables', [BookableController::class, 'getAvailableBookables'])->name('bookable.available');
 
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [OrderController::class, 'orders'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
+
+Route::post('/orders/assign-contractor', [OrderController::class, 'assignContractor'])
+    ->middleware(['auth'])
+    ->name('orders.assign-contractor');
+
 
 Route::get('/contractor/confirmation', [ContractorController::class, 'confirm'])
     ->name('contractor.confirmation')
