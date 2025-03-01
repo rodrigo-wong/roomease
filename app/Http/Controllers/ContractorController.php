@@ -31,6 +31,8 @@ class ContractorController extends Controller
         */
         $orderBookableToBeFilled = $order->orderBookables()->where('status', OrderStatus::PENDING)->where('bookable_type', ContractorRole::class)->where('bookable_id', $validated['role_id'])->first();;
         if(!$orderBookableToBeFilled) {
+                    // TODO: Inertia returned a React file for confirm landing page
+
             dd("Job already taken");
         } else {
             $orderBookableToBeFilled->status = OrderBookableStatus::CONFIRMED;
@@ -45,6 +47,8 @@ class ContractorController extends Controller
         }
         $order->save();
 
+
+        // TODO: Inertia returned a React file for confirm landing page
         dd("Contractor confirmed");
 
         return redirect()->back();
