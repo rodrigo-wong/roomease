@@ -206,31 +206,33 @@ class BookableController extends Controller
         ]);
     
         // Validate type-specific fields, similar to store
-        if ($bookable->bookable_type === 'contractor') {
+        if ($bookable->bookable_type === BookableType::CONTRACTOR) {
             $request->validate([
                 'role_id' => 'required|exists:contractor_roles,id',
                 'phone_number' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255',
             ]);
         }
-        if ($bookable->bookable_type === 'product') {
+
+        if ($bookable->bookable_type === BookableType::PRODUCT) {
             $request->validate([
                 'brand' => 'required|string|max:255',
                 'serial_number' => 'required|string|max:255',
                 'category_id' => 'required|exists:product_categories,id',
             ]);
         }
-        if ($bookable->bookable_type === 'room') {
+        if ($bookable->bookable_type === BookableType::ROOM) {
             $request->validate([
                 'capacity' => 'required|integer|min:1',
             ]);
         }
+
     
         // Update base bookable
         $bookable->update($validated);
     
         // Update type-specific details using updateOrCreate
-        if ($bookable->bookable_type === 'contractor') {
+        if ($bookable->bookable_type === BookableType::CONTRACTOR) {
             $bookable->contractor()->updateOrCreate(
                 ['bookable_id' => $bookable->id],
                 [
@@ -241,8 +243,9 @@ class BookableController extends Controller
                 ]
             );
         }
-    
-        if ($bookable->bookable_type === 'product') {
+
+        if ($bookable->bookable_type === BookableType::PRODUCT) {
+            dd('here');
             $bookable->product()->updateOrCreate(
                 ['bookable_id' => $bookable->id],
                 [
@@ -255,7 +258,7 @@ class BookableController extends Controller
             );
         }
     
-        if ($bookable->bookable_type === 'room') {
+        if ($bookable->bookable_type === BookableType::ROOM) {
             $bookable->room()->updateOrCreate(
                 ['bookable_id' => $bookable->id],
                 [
