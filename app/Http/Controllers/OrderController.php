@@ -13,6 +13,8 @@ use App\Models\ContractorRole;
 use App\Models\OrderBookable;
 use App\Models\Room;
 use App\Models\Product;
+use Illuminate\Support\Facades\DB;
+
 
 class OrderController extends Controller
 {
@@ -20,7 +22,9 @@ class OrderController extends Controller
     {
 
         $orders = Order::with(['orderBookables.bookable', 'customer'])
-            ->orderBy('created_at', 'desc')
+            ->select('orders.*')
+            ->addSelect(DB::raw('(SELECT start_time FROM order_bookables WHERE order_bookables.order_id = orders.id LIMIT 1) as booking_time'))
+            ->orderBy('booking_time', 'asc')
             ->paginate(10);
 
         $contractors = Contractor::with('role')->get();
