@@ -154,9 +154,8 @@ class OrderController extends Controller
         //calculate duration
         $startTime = new \DateTime($startDateTime);
         $endTime = new \DateTime($endDateTime);
-        $duration = $startTime->diff($endTime);
-        $hours = $duration->h + ($duration->days * 24);
-        $hours = max($hours, 2);
+        $totalMinutes = ($endTime->getTimestamp() - $startTime->getTimestamp()) / 60;
+        $hours = $totalMinutes / 60;
 
         //Get the room rate
         $bookable = Bookable::find($validated['room_id']);

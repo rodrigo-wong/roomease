@@ -19,7 +19,7 @@ export default function Dashboard({ orders, contractors, contractorRoles, rooms,
         end_time: '',
         note: ''
       });
-   
+    const [formValidationErrors, setFormValidationErrors] = useState({});
 
      // Get name based on bookable type and ID
      const getItemName = (bookable) => {
@@ -205,48 +205,68 @@ const formatBookableTime = (startTime, endTime) => {
 const closeAdminBookingModal = () => {
     setShowAdminBookingModal(false);
     resetAdminBookingForm();
+    setFormValidationErrors({});
 };
 
 
 const handleAdminBookingSubmit = (e) => {
     e.preventDefault();
-    
-       // Form validation
-       if (!adminBookingData.room_id) {
-        alert('Please select a room');
+    // Clear previous validation errors
+    setFormValidationErrors({});
+    //Form validation
+    let errors = {};
+    let isValid = true;
+    if (!adminBookingData.room_id) {
+        errors.room_id = "Please select a room";
+        isValid = false;
+    }
+    if (!adminBookingData.start_time) {
+        errors.start_time = "Start time is required";
+        isValid = false;
+    }
+    if (!adminBookingData.end_time) {
+        errors.end_time = "End time is required";
+        isValid = false;
+    }
+      // Validate that end time is after start time
+      if (adminBookingData.start_time && adminBookingData.end_time) {
+        const startDateTime = new Date(`${adminBookingData.date}T${adminBookingData.start_time}`);
+        const endDateTime = new Date(`${adminBookingData.date}T${adminBookingData.end_time}`);
+        if (endDateTime <= startDateTime) {
+            errors.end_time = "End time must be after start time";
+            isValid = false;
+        }
+    }
+    if (!isValid) {
+        setFormValidationErrors(errors);
         return;
     }
-    
-    if (!adminBookingData.start_time || !adminBookingData.end_time) {
-        alert('Please select start and end times');
-        return;
-    }
-    
-    // Validate that end time is after start time
-    const startDateTime = new Date(`${adminBookingData.date}T${adminBookingData.start_time}`);
-    const endDateTime = new Date(`${adminBookingData.date}T${adminBookingData.end_time}`);
-
-    if (endDateTime <= startDateTime) {
-        alert('End time must be after start time');
-        return;
-    }
-    
+    // If validation passes, submit the form
     postAdminBooking(route('orders.admin-booking'), {
         onSuccess: (response) => {
             setShowAdminBookingModal(false);
-            // Reset form
             resetAdminBookingForm();
         },
-        onError: (errors) => {
+        onError: () => {
             console.error('Admin booking failed - Please try again.');
-          
         },
         onFinish: () => {
             console.log('Admin booking finished');
         }
     });
-
 };
+
+const handleInputChange = (field, value) => {
+        // Clear the error for this field when user makes changes
+        if (formValidationErrors[field]) {
+            setFormValidationErrors(prev => {
+                const updated = {...prev};
+                delete updated[field];
+                return updated;
+            });
+        }
+        setAdminBookingData(field, value);
+}
 
     return (
         <AuthenticatedLayout
@@ -623,7 +643,7 @@ const handleAdminBookingSubmit = (e) => {
                 </button>
             </div>
             
-            <form onSubmit={handleAdminBookingSubmit}>
+            <form onSubmit={handleAdminBookingSubmit} noValidate>
                 <div className="space-y-4">
                     {/* Room Selection */}
                     <div>
@@ -632,8 +652,12 @@ const handleAdminBookingSubmit = (e) => {
                         </label>
                         <select
                             value={adminBookingData.room_id}
-                            onChange={(e) => setAdminBookingData('room_id', e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            onChange={(e) => handleInputChange('room_id', e.target.value)}
+                            className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                formValidationErrors.room_id || adminBookingErrors.room_id 
+                                ? 'border-red-300' 
+                                : 'border-gray-300'
+                            }`}                           
                             required
                         >
                             <option value="">-- Select Room --</option>
@@ -643,9 +667,12 @@ const handleAdminBookingSubmit = (e) => {
                                 </option>
                             ))}
                         </select>
+                        {formValidationErrors.room_id && (
+                            <p className="text-red-500 text-xs mt-1">{formValidationErrors.room_id}</p>
+                                 )}
                         {adminBookingErrors.room_id && (
-                        <p className="text-red-500 text-xs mt-1">{adminBookingErrors.room_id}</p>
-                    )}
+                            <p className="text-red-500 text-xs mt-1">{adminBookingErrors.room_id}</p>
+                             )}
                     </div>
                     
                     {/* Date Selection */}
@@ -656,13 +683,19 @@ const handleAdminBookingSubmit = (e) => {
                         <input
                             type="date"
                             value={adminBookingData.date}
-                            onChange={(e) => setAdminBookingData('date', e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            required
+                            onChange={(e) => handleInputChange('date', e.target.value)}
+                            className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                formValidationErrors.date || adminBookingErrors.date
+                                ? 'border-red-300'
+                                : 'border-gray-300'
+                            }`}                            required
                             min={new Date().toISOString().split('T')[0]} // Can't select past dates
                         />
-                         {adminBookingErrors.date && (
-                            <p className="text-red-500 text-xs mt-1">{adminBookingErrors.date}</p>
+                     {formValidationErrors.date && (
+                        <p className="text-red-500 text-xs mt-1">{formValidationErrors.date}</p>
+                        )}
+                    {adminBookingErrors.date && (
+                        <p className="text-red-500 text-xs mt-1">{adminBookingErrors.date}</p>
                         )}
                     </div>
                     
@@ -675,11 +708,18 @@ const handleAdminBookingSubmit = (e) => {
                             <input
                                 type="time"
                                 value={adminBookingData.start_time}
-                                onChange={(e) => setAdminBookingData('start_time', e.target.value)}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                onChange={(e) => handleInputChange('start_time', e.target.value)}
+                                className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                    formValidationErrors.start_time || adminBookingErrors.start_time
+                                    ? 'border-red-300'
+                                    : 'border-gray-300'
+                                }`}
                                 required
                             />
-                              {adminBookingErrors.start_time && (
+                               {formValidationErrors.start_time && (
+                                <p className="text-red-500 text-xs mt-1">{formValidationErrors.start_time}</p>
+                            )}
+                            {adminBookingErrors.start_time && (
                                 <p className="text-red-500 text-xs mt-1">{adminBookingErrors.start_time}</p>
                             )}
                         </div>
@@ -690,13 +730,20 @@ const handleAdminBookingSubmit = (e) => {
                             <input
                                 type="time"
                                 value={adminBookingData.end_time}
-                                onChange={(e) => setAdminBookingData('end_time', e.target.value)}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                onChange={(e) => handleInputChange('end_time', e.target.value)}
+                                className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                    formValidationErrors.end_time || adminBookingErrors.end_time
+                                    ? 'border-red-300'
+                                    : 'border-gray-300'
+                                }`}
                                 required
                             />
-                             {adminBookingErrors.end_time && (
-                                <p className="text-red-500 text-xs mt-1">{adminBookingErrors.end_time}</p>
-                            )}
+                             {formValidationErrors.end_time && (
+                            <p className="text-red-500 text-xs mt-1">{formValidationErrors.end_time}</p>
+                        )}
+                        {adminBookingErrors.end_time && (
+                            <p className="text-red-500 text-xs mt-1">{adminBookingErrors.end_time}</p>
+                        )}
                         </div>
                     </div>
                     
@@ -707,9 +754,12 @@ const handleAdminBookingSubmit = (e) => {
                         </label>
                         <textarea
                              value={adminBookingData.note}
-                             onChange={(e) => setAdminBookingData('note', e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            rows="3"
+                             onChange={(e) => handleInputChange('note', e.target.value)}
+                             className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                adminBookingErrors.note
+                                ? 'border-red-300'
+                                : 'border-gray-300'
+                            }`}                            rows="3"
                             placeholder="e.g., Maintenance, Private Event, etc."
                         ></textarea>
                         {adminBookingErrors.note && (
