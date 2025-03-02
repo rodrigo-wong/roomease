@@ -28,7 +28,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                     href={route('dashboard')}
                                     active={route().current('dashboard')}
                                 >
-                                    Dashboard
+                                    ROOM BOOKINGS
                                 </NavLink>
                                 <NavLink
                                     href={route('bookables.index')}
