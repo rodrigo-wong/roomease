@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Order extends Model
 {
-    protected $fillable = ['customer_id', 'total_amount', 'status'];
+    protected $fillable = ['customer_id', 'total_amount', 'status', 'notes'];
 
     protected $casts = [
         'status' => OrderStatus::class,
@@ -38,7 +38,5 @@ class Order extends Model
         return $this->orderBookables()->get()->every(function ($orderBookable) {
             return $orderBookable->status === OrderBookableStatus::CONFIRMED->value;
         });
-        
     }
-    
 }

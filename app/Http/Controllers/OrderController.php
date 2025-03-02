@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\OrderBookableStatus;
 use App\Enums\OrderStatus;
 use App\Models\Order;
-
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Contractor;
@@ -14,6 +14,8 @@ use App\Models\OrderBookable;
 use App\Models\Room;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Bookable;
 
 
 class OrderController extends Controller
@@ -107,5 +109,110 @@ class OrderController extends Controller
         }
 
         return back()->with('success', 'Contractor assigned successfully');
+    }
+
+    public function createAdminBooking(Request $request)
+    {
+        $validated = $request->validate([
+            'room_id' => 'required|exists:bookables,id',
+            'date' => 'required|date|after_or_equal:today',
+            'start_time' => 'required',
+            'end_time' => 'required|after:start_time',
+            'note' => 'nullable|string',
+        ]);
+
+        //combine date and time
+        $startDateTime = $validated['date'] . ' ' . $validated['start_time'] . ':00';
+        $endDateTime = $validated['date'] . ' ' . $validated['end_time'] . ':00';
+
+        // Check if room is available
+        $isRoomAvailable = $this->checkRoomAvailability(
+            $validated['room_id'],
+            $startDateTime,
+            $endDateTime
+        );
+
+        if (!$isRoomAvailable) {
+            return redirect()->back()->withErrors([
+                'room_id' => 'This room is already booked for the selected time period.'
+            ]);
+        }
+
+        //Get the authneticated admin
+        $admin = Auth::user();
+
+        //Find or create a customer record for this admin user
+        $customer = Customer::firstOrCreate(
+            ['email' => $admin->email],
+            [
+                'first_name' => $admin->name,
+                'last_name' => ' - Admin',
+                'phone_number' => '000000000'
+            ]
+        );
+
+        //calculate duration
+        $startTime = new \DateTime($startDateTime);
+        $endTime = new \DateTime($endDateTime);
+        $duration = $startTime->diff($endTime);
+        $hours = $duration->h + ($duration->days * 24);
+        $hours = max($hours, 2);
+
+        //Get the room rate
+        $bookable = Bookable::find($validated['room_id']);
+        $hourlyRate = $bookable->rate;
+
+        //calculate total amount
+        $totalAmount = $hours * $hourlyRate;
+
+        //create order
+        $order = new Order();
+        $order->customer_id = $customer->id;
+        $order->status = OrderStatus::ADMIN_RESERVED;
+        $order->total_amount = $totalAmount;
+        $order->notes = $validated['note'] ?? 'Reserved by admin ' . $admin->name;
+        $order->save();
+
+        //Create the order bookable
+        $orderBookable = new OrderBookable();
+        $orderBookable->order_id = $order->id;
+        $orderBookable->bookable_type = Room::class;
+        $orderBookable->bookable_id = $validated['room_id'];
+        $orderBookable->start_time = $startDateTime;
+        $orderBookable->end_time = $endDateTime;
+        $orderBookable->quantity = 1;
+        $orderBookable->status = OrderBookableStatus::ADMIN_BLOCKED;
+        $orderBookable->save();
+
+        return redirect()->route('dashboard')->with('success', 'Room has been successfully blocked for the selected time period.');
+    }
+
+    // Helper method to check if room is available
+    private function checkRoomAvailability($roomId, $startTime, $endTime)
+    {
+        // Find any overlapping bookings
+        $conflictingBookings = OrderBookable::where('bookable_id', $roomId)
+            ->where('bookable_type', Room::class)
+            ->where('status', '!=', OrderBookableStatus::CANCELLED)
+            ->where(function ($query) use ($startTime, $endTime) {
+                // Start time falls within existing booking
+                $query->where(function ($q) use ($startTime, $endTime) {
+                    $q->where('start_time', '<=', $startTime)
+                        ->where('end_time', '>', $startTime);
+                })
+                    // End time falls within existing booking
+                    ->orWhere(function ($q) use ($startTime, $endTime) {
+                        $q->where('start_time', '<', $endTime)
+                            ->where('end_time', '>=', $endTime);
+                    })
+                    // Booking completely contains the requested period
+                    ->orWhere(function ($q) use ($startTime, $endTime) {
+                        $q->where('start_time', '>=', $startTime)
+                            ->where('end_time', '<=', $endTime);
+                    });
+            })
+            ->count();
+
+        return $conflictingBookings === 0;
     }
 }

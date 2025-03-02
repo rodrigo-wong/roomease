@@ -4,16 +4,24 @@ import React, { useState } from 'react';
 import Pagination from '@/Components/Pagination';
 import { useRef } from 'react';
 
-export default function Dashboard({ orders, contractors, contractorRoles, rooms, products, filters = {} }) {
+export default function Dashboard({ orders, contractors, contractorRoles, rooms, products, filters = {}, flash }) {
     const [expandedOrder, setExpandedOrder] = useState(null);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [selectedBookable, setSelectedBookable] = useState(null);
-
     const [timeFilter, setTimeFilter] = useState(filters.timeFilter || 'all'); 
     const [statusFilter, setStatusFilter] = useState(filters.statusFilter || 'all'); 
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const [showAdminBookingModal, setShowAdminBookingModal] = useState(false);
+    const { data: adminBookingData, setData: setAdminBookingData, post: postAdminBooking, processing: adminBookingProcessing, errors: adminBookingErrors, reset: resetAdminBookingForm } = useForm({
+        room_id: '',
+        date: new Date().toISOString().split('T')[0], 
+        start_time: '',
+        end_time: '',
+        note: ''
+      });
+   
 
-     // Helper function to get the name based on bookable type and ID
+     // Get name based on bookable type and ID
      const getItemName = (bookable) => {
         if (bookable.bookable) {
    
@@ -194,6 +202,52 @@ const formatBookableTime = (startTime, endTime) => {
     }
 };
 
+const closeAdminBookingModal = () => {
+    setShowAdminBookingModal(false);
+    resetAdminBookingForm();
+};
+
+
+const handleAdminBookingSubmit = (e) => {
+    e.preventDefault();
+    
+       // Form validation
+       if (!adminBookingData.room_id) {
+        alert('Please select a room');
+        return;
+    }
+    
+    if (!adminBookingData.start_time || !adminBookingData.end_time) {
+        alert('Please select start and end times');
+        return;
+    }
+    
+    // Validate that end time is after start time
+    const startDateTime = new Date(`${adminBookingData.date}T${adminBookingData.start_time}`);
+    const endDateTime = new Date(`${adminBookingData.date}T${adminBookingData.end_time}`);
+
+    if (endDateTime <= startDateTime) {
+        alert('End time must be after start time');
+        return;
+    }
+    
+    postAdminBooking(route('orders.admin-booking'), {
+        onSuccess: (response) => {
+            setShowAdminBookingModal(false);
+            // Reset form
+            resetAdminBookingForm();
+        },
+        onError: (errors) => {
+            console.error('Admin booking failed - Please try again.');
+          
+        },
+        onFinish: () => {
+            console.log('Admin booking finished');
+        }
+    });
+
+};
+
     return (
         <AuthenticatedLayout
             header={
@@ -208,14 +262,25 @@ const formatBookableTime = (startTime, endTime) => {
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">
-                          
+                       
+                        {flash && flash.success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex items-center justify-between">
+            <span className="block sm:inline">{flash.success}</span>
+            <button onClick={() => delete flash.success} className="text-green-700">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    )}
 
                     
-   {/* Time and Status Filters */}
+{/* Time, Status Filters and Search Bar */}
 <div className="mb-6">
-    <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center">
+    <div className="flex flex-wrap items-center justify-between">
+        <div className="flex flex-wrap items-center gap-4 mb-2 sm:mb-0">
+            {/* Time Filter */}
+            <div className="flex items-center mr-4">
                 <span className="text-sm font-medium text-gray-700 mr-2">Time:</span>
                 <button 
                     onClick={() => handleTimeFilterChange('all')}
@@ -243,6 +308,7 @@ const formatBookableTime = (startTime, endTime) => {
                 </button>
             </div>
             
+            {/* Status Filter */}
             <div className="flex items-center">
                 <span className="text-sm font-medium text-gray-700 mr-2">Status:</span>
                 <button 
@@ -270,23 +336,34 @@ const formatBookableTime = (startTime, endTime) => {
                     Completed
                 </button>
             </div>
-        </div>
-        
-        {/* Search Input */}
-        <div className="relative w-64">
-            <input
-                type="text"
-                placeholder="Search by customer name..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="w-full pl-10 pr-4 py-1.5 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+
+            {/* Search Input */}
+            <div className="relative w-64">
+                <input
+                    type="text"
+                    placeholder="Search by customer name..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="w-full pl-10 pr-4 py-1.5 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
             </div>
         </div>
+        
+        {/* Create Admin Block Button */}
+        <button 
+            onClick={() => setShowAdminBookingModal(true)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 flex items-center"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+            </svg>
+            Create Admin Block
+        </button>
     </div>
 </div>
 
@@ -313,13 +390,14 @@ const formatBookableTime = (startTime, endTime) => {
                         <tr className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">{order.id}</td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                                        order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
-                                        'bg-blue-100 text-blue-800'}`}>
-                                    {order.status.toUpperCase()}
-                                </span>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                                order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                                order.status === 'admin_reserved' ? 'bg-purple-100 text-purple-800' :
+                                'bg-blue-100 text-blue-800'}`}>
+                                {order.status === 'admin_reserved' ? 'ADMIN BLOCK' : order.status.toUpperCase()}
+                            </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 {order.customer && `${order.customer.first_name} ${order.customer.last_name}`}
@@ -341,7 +419,7 @@ const formatBookableTime = (startTime, endTime) => {
                 ))}
             </tbody>
         </table>
-        
+
         {/* Pagination Component*/}
         <div className="mt-6">
             {orders.links && <Pagination links={orders.links} />}
@@ -439,10 +517,11 @@ const formatBookableTime = (startTime, endTime) => {
                                     <p className="text-sm text-gray-500">Status</p>
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                         ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                                          order.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                          order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
-                                          'bg-blue-100 text-blue-800'}`}>
-                                        {order.status.toUpperCase()}
+                                        order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                        order.status === 'admin_reserved' ? 'bg-purple-100 text-purple-800' : 
+                                        'bg-blue-100 text-blue-800'}`}>
+                                        {order.status === 'admin_reserved' ? 'ADMIN BLOCK' : order.status.toUpperCase()}
                                     </span>
                                 </div>
                                 <div>
@@ -453,6 +532,12 @@ const formatBookableTime = (startTime, endTime) => {
                                     <p className="text-sm text-gray-500">Total Amount</p>
                                     <p className="font-medium">{formatCurrency(order.total_amount)}</p>
                                 </div>
+                                {order.notes && (
+                                <div className="col-span-2">
+                                    <p className="text-sm text-gray-500">Notes</p>
+                                    <p className="font-medium">{order.notes}</p>
+                                </div>
+                                    )}
                             </div>
                             
                             <h4 className="font-semibold mb-2">Booked Items</h4>
@@ -518,6 +603,137 @@ const formatBookableTime = (startTime, endTime) => {
                     Close
                 </button>
             </div>
+        </div>
+    </div>
+)}
+
+{/* Admin Booking Modal */}
+{showAdminBookingModal && (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[60]">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Block Room Time</h3>
+                <button 
+                    onClick={closeAdminBookingModal}
+                    className="text-gray-500 hover:text-gray-700"
+                >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <form onSubmit={handleAdminBookingSubmit}>
+                <div className="space-y-4">
+                    {/* Room Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select Room to Block
+                        </label>
+                        <select
+                            value={adminBookingData.room_id}
+                            onChange={(e) => setAdminBookingData('room_id', e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            required
+                        >
+                            <option value="">-- Select Room --</option>
+                            {rooms && rooms.map((room) => (
+                                <option key={room.bookable_id} value={room.bookable_id}>
+                                    {room.name}
+                                </option>
+                            ))}
+                        </select>
+                        {adminBookingErrors.room_id && (
+                        <p className="text-red-500 text-xs mt-1">{adminBookingErrors.room_id}</p>
+                    )}
+                    </div>
+                    
+                    {/* Date Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Date
+                        </label>
+                        <input
+                            type="date"
+                            value={adminBookingData.date}
+                            onChange={(e) => setAdminBookingData('date', e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            required
+                            min={new Date().toISOString().split('T')[0]} // Can't select past dates
+                        />
+                         {adminBookingErrors.date && (
+                            <p className="text-red-500 text-xs mt-1">{adminBookingErrors.date}</p>
+                        )}
+                    </div>
+                    
+                    {/* Time Range */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Start Time
+                            </label>
+                            <input
+                                type="time"
+                                value={adminBookingData.start_time}
+                                onChange={(e) => setAdminBookingData('start_time', e.target.value)}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                required
+                            />
+                              {adminBookingErrors.start_time && (
+                                <p className="text-red-500 text-xs mt-1">{adminBookingErrors.start_time}</p>
+                            )}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                End Time
+                            </label>
+                            <input
+                                type="time"
+                                value={adminBookingData.end_time}
+                                onChange={(e) => setAdminBookingData('end_time', e.target.value)}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                required
+                            />
+                             {adminBookingErrors.end_time && (
+                                <p className="text-red-500 text-xs mt-1">{adminBookingErrors.end_time}</p>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {/* Note */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Reason for Blocking (optional)
+                        </label>
+                        <textarea
+                             value={adminBookingData.note}
+                             onChange={(e) => setAdminBookingData('note', e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            rows="3"
+                            placeholder="e.g., Maintenance, Private Event, etc."
+                        ></textarea>
+                        {adminBookingErrors.note && (
+                            <p className="text-red-500 text-xs mt-1">{adminBookingErrors.note}</p>
+                        )}
+                    </div>
+                </div>
+                
+                <div className="flex justify-end space-x-3 mt-6">
+                    <button
+                        type="button"
+                        onClick={closeAdminBookingModal}
+                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
+                    >
+                        Block Room
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 )}

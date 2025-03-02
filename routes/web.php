@@ -29,6 +29,9 @@ Route::post('/orders/assign-contractor', [OrderController::class, 'assignContrac
     ->middleware(['auth'])
     ->name('orders.assign-contractor');
 
+Route::post('/orders/admin-booking', [OrderController::class, 'createAdminBooking'])
+    ->name('orders.admin-booking')
+    ->middleware(['auth']);
 
 Route::get('/contractor/confirmation', [ContractorController::class, 'confirm'])
     ->name('contractor.confirmation')
