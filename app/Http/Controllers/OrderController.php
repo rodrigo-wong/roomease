@@ -18,14 +18,55 @@ use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
-    public function orders()
+    public function orders(Request $request)
     {
+        $search = $request->input('search');
+        $timeFilter = $request->input('timeFilter', 'all');
+        $statusFilter = $request->input('statusFilter', 'all');
 
-        $orders = Order::with(['orderBookables.bookable', 'customer'])
+        $query = Order::with(['orderBookables.bookable', 'customer'])
             ->select('orders.*')
-            ->addSelect(DB::raw('(SELECT start_time FROM order_bookables WHERE order_bookables.order_id = orders.id LIMIT 1) as booking_time'))
-            ->orderBy('booking_time', 'asc')
-            ->paginate(10);
+            ->addSelect(DB::raw('(SELECT start_time FROM order_bookables WHERE order_bookables.order_id = orders.id LIMIT 1) as booking_time'));
+
+        // Apply search filter if provided
+        if ($search) {
+            $query->whereHas('customer', function ($q) use ($search) {
+                $q->where(DB::raw("CONCAT(first_name, ' ', last_name)"), 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Apply time filter
+        if ($timeFilter !== 'all') {
+            //$now = now(); //UTC default timezone
+            $now = now()->timezone('America/New_York');
+            if ($timeFilter === 'future') {
+                $query->whereExists(function ($q) use ($now) {
+                    $q->select(DB::raw(1))
+                        ->from('order_bookables')
+                        ->whereColumn('order_bookables.order_id', 'orders.id')
+                        ->where('end_time', '>', $now);
+                });
+            } else if ($timeFilter === 'past') {
+                $query->whereExists(function ($q) use ($now) {
+                    $q->select(DB::raw(1))
+                        ->from('order_bookables')
+                        ->whereColumn('order_bookables.order_id', 'orders.id')
+                        ->where('end_time', '<=', $now);
+                });
+            }
+        }
+
+        // Apply status filter
+        if ($statusFilter !== 'all') {
+            $query->where('status', $statusFilter);
+        }
+
+        // Apply sorting
+        $orders = $query->orderBy('booking_time', 'asc')
+            ->paginate(10)
+            ->withQueryString();
+
+
 
         $contractors = Contractor::with('role')->get();
         $contractorRoles = ContractorRole::all();
@@ -37,7 +78,12 @@ class OrderController extends Controller
             'contractors' => $contractors,
             'contractorRoles' => $contractorRoles,
             'rooms' => $rooms,
-            'products' => $products
+            'products' => $products,
+            'filters' => [
+                'search' => $search,
+                'timeFilter' => $timeFilter,
+                'statusFilter' => $statusFilter,
+            ],
         ]);
     }
     public function assignContractor(Request $request)

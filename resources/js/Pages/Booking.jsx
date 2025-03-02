@@ -78,7 +78,8 @@ const Booking = ({ rooms }) => {
             },
         });
     };
-
+    
+    //TODO: add a message when no timeslots are available
     // Fetch available time slots when room, date and hours are selected
     useEffect(() => {
         if (selectedRoom && selectedDate && hours) {
