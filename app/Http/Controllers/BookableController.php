@@ -15,9 +15,13 @@ use App\Models\ProductCategory;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
 use App\Models\BookableAvailability;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use App\Traits\CacheInvalidationTrait;
 
 class BookableController extends Controller
 {
+    use CacheInvalidationTrait;
     /**
      * Display a listing of the resource.
      */
@@ -89,6 +93,7 @@ class BookableController extends Controller
                 'phone_number' => $request->phone_number,
                 'email' => $request->email,
             ]);
+            Cache::forget('contractors');
         }
 
         // If bookable is a product, store extra product details
@@ -100,6 +105,7 @@ class BookableController extends Controller
                 'product_category_id' => $request->category_id,
                 'description' => $request->description,
             ]);
+            Cache::forget('products');
         }
 
         if ($request->bookable_type === 'room') {
@@ -108,6 +114,7 @@ class BookableController extends Controller
                 'description' => $request->description,
                 'capacity' => $request->capacity,
             ]);
+            Cache::forget('rooms');
         }
 
         // Save availability slots using the relationship
@@ -161,7 +168,7 @@ class BookableController extends Controller
             }
             $bookable->unsetRelation('contractor');
         }
-    
+
         if ($bookable->bookable_type === BookableType::PRODUCT) {
             $bookable->load('product');
             if ($bookable->product) {
@@ -172,7 +179,7 @@ class BookableController extends Controller
             }
             $bookable->unsetRelation('product');
         }
-    
+
         if ($bookable->bookable_type === BookableType::ROOM) {
             $bookable->load('room');
             if ($bookable->room) {
@@ -190,7 +197,7 @@ class BookableController extends Controller
             'contractorRoles' => ContractorRole::all(),
         ]);
     }
-    
+
 
     /**
      * Update the specified resource in storage.
@@ -204,7 +211,7 @@ class BookableController extends Controller
             'description' => 'nullable|string',
             'bookable_type' => ['required', Rule::in(BookableType::values())],
         ]);
-    
+
         // Validate type-specific fields, similar to store
         if ($bookable->bookable_type === BookableType::CONTRACTOR) {
             $request->validate([
@@ -227,10 +234,10 @@ class BookableController extends Controller
             ]);
         }
 
-    
+
         // Update base bookable
         $bookable->update($validated);
-    
+
         // Update type-specific details using updateOrCreate
         if ($bookable->bookable_type === BookableType::CONTRACTOR) {
             $bookable->contractor()->updateOrCreate(
@@ -242,6 +249,7 @@ class BookableController extends Controller
                     'email' => $request->email,
                 ]
             );
+            Cache::forget('contractors');
         }
 
         if ($bookable->bookable_type === BookableType::PRODUCT) {
@@ -255,8 +263,9 @@ class BookableController extends Controller
                     'description' => $request->description,
                 ]
             );
+            Cache::forget('products');
         }
-    
+
         if ($bookable->bookable_type === BookableType::ROOM) {
             $bookable->room()->updateOrCreate(
                 ['bookable_id' => $bookable->id],
@@ -266,11 +275,12 @@ class BookableController extends Controller
                     'capacity' => $request->capacity,
                 ]
             );
+            Cache::forget('rooms');
         }
-    
+
         // Delete all existing availability slots
         $bookable->availability()->delete();
-    
+
         // Re-create availability slots, following the same structure as in store
         foreach ($request->availability as $day => $slots) {
             foreach ($slots as $slot) {
@@ -283,16 +293,28 @@ class BookableController extends Controller
                 }
             }
         }
-    
+
         return redirect()->route('bookables.index')
             ->with('success', 'Bookable updated successfully!');
-    }    
+    }
 
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(Bookable $bookable)
     {
+        // Determine which cache to invalidate based on bookable type
+        if ($bookable->bookable_type === BookableType::CONTRACTOR) {
+            Cache::forget('contractors');
+        } else if ($bookable->bookable_type === BookableType::PRODUCT) {
+            Cache::forget('products');
+        } else if ($bookable->bookable_type === BookableType::ROOM) {
+            Cache::forget('rooms');
+        }
+
+        // Also clear orders cache since orders might reference this bookable
+        $this->invalidateOrdersCache();
+
         $bookable->delete();
         return redirect()->back()->with('success', 'Bookable deleted successfully!');
     }
@@ -385,28 +407,28 @@ class BookableController extends Controller
             'timeslot.start_time' => 'required|date_format:H:i',
             'timeslot.end_time' => 'required|date_format:H:i|after:timeslot.start_time',
         ]);
-    
+
         $date = $request->date;
         $selectedStartTime = $request->timeslot['start_time'];
         $selectedEndTime = $request->timeslot['end_time'];
-    
+
         // Create Carbon instances for the selected timeslot by combining with the date.
         $selectedStart = Carbon::parse($date . ' ' . $selectedStartTime);
         $selectedEnd = Carbon::parse($date . ' ' . $selectedEndTime);
-    
+
         // Fetch all bookables that are NOT rooms and eager-load necessary relationships
         $availableBookables = Bookable::with(['room', 'contractor.role', 'product'])
             ->where('bookable_type', '!=', 'room')
             ->get();
-    
+
         // Fetch existing bookings for all non-room bookables on the requested date
         $bookedBookables = OrderBookable::whereDate('start_time', $date)
             ->get()
             ->groupBy('bookable_id'); // Group by bookable ID for faster lookup
-    
+
         Log::info($bookedBookables);
         Log::info('Selected timeslot: ' . $selectedStart->toDateTimeString() . ' - ' . $selectedEnd->toDateTimeString());
-    
+
         // Filter only bookables that are not booked for the selected timeslot
         $matchingBookables = $availableBookables->filter(function ($bookable) use ($bookedBookables, $selectedStart, $selectedEnd) {
             if ($bookedBookables->has($bookable->id)) {
@@ -415,20 +437,20 @@ class BookableController extends Controller
                 foreach ($existingBookings as $booking) {
                     $bookingStart = Carbon::parse($booking->start_time);
                     $bookingEnd = Carbon::parse($booking->end_time);
-    
+
                     // Check for overlap using Carbon's comparison methods
                     if ($selectedStart->lte($bookingEnd) && $selectedEnd->gte($bookingStart)) {
                         return false; // Conflict found, bookable is already taken
                     }
                 }
             }
-    
+
             return true; // Bookable is available for the selected timeslot
         });
-    
+
         // First, group the matching bookables by type
         $groupedBookables = $matchingBookables->groupBy('bookable_type');
-    
+
         // Map each contractor to a simpler array structure.
         // Here we extract role_id and role_name separately.
         if ($groupedBookables->has('contractor')) {
@@ -442,7 +464,7 @@ class BookableController extends Controller
                     'email' => $contractor->contractor->email,
                 ];
             });
-    
+
             // Group by role_id (a scalar value) and add a quantity for each group.
             $groupedBookables['contractor'] = $contractors->groupBy('role_id')
                 ->map(function ($group, $roleId) {
@@ -458,7 +480,7 @@ class BookableController extends Controller
                 })
                 ->values();
         }
-    
+
         return response()->json([
             'date' => $date,
             'selected_timeslot' => [

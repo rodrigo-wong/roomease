@@ -15,9 +15,13 @@ use App\Enums\OrderBookableStatus;
 use Illuminate\Support\Facades\Log;
 use App\Mail\ContractorConfirmation;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use App\Traits\CacheInvalidationTrait;
 
 class BookingController extends Controller
 {
+    use CacheInvalidationTrait;
     public function store(Request $request)
     {
         // dd($request->all());
@@ -91,6 +95,32 @@ class BookingController extends Controller
             foreach ($contractorEmails as $contractorType) {
                 foreach ($contractorType['emails'] as $email) {
                     Mail::to($email)->send(new ContractorConfirmation($order, $contractorType['role'], $email));
+                }
+            }
+
+            // Invalidate caches that are affected by this new booking
+            $this->invalidateOrdersCache(); // Clear all orders-related cache
+            Cache::forget('rooms'); // Room availability has changed
+
+            // If products or contractors were booked, clear those caches too
+            if (!empty($validated['addons'])) {
+                $clearedProductCache = false;
+                $clearedContractorCache = false;
+
+                foreach ($validated['addons'] as $addon) {
+                    if ($addon['bookable_type'] === 'product' && !$clearedProductCache) {
+                        Cache::forget('products');
+                        $clearedProductCache = true;
+                    } else if ($addon['bookable_type'] === 'contractor' && !$clearedContractorCache) {
+                        Cache::forget('contractors');
+                        Cache::forget('contractorRoles');
+                        $clearedContractorCache = true;
+                    }
+
+                    // If we've cleared all possible caches, break the loop
+                    if ($clearedProductCache && $clearedContractorCache) {
+                        break;
+                    }
                 }
             }
 

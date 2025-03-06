@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use App\Models\ContractorRole;
 
 class ContractorRoleController extends Controller
 {
-    //
+    /**
+     * Store a new contractor role and invalidate related cache
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -20,6 +23,9 @@ class ContractorRoleController extends Controller
             'description' => $request->description,
             'rate' => $request->rate
         ]);
+
+        // After creating a new role, invalidate the contractorRoles cache
+        Cache::forget('contractorRoles');
 
         return redirect()->back();
     }

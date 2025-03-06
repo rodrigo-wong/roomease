@@ -16,64 +16,83 @@ use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Bookable;
-
+use Illuminate\Support\Facades\Cache;
+use App\Traits\CacheInvalidationTrait;
 
 class OrderController extends Controller
 {
+    use CacheInvalidationTrait;
+    /**
+     * Display a list of orders with filtering options
+     * 
+     * Uses Laravel's Cache system to improve performance by storing
+     * query results to reduce database load
+     */
     public function orders(Request $request)
     {
         $search = $request->input('search');
         $timeFilter = $request->input('timeFilter', 'all');
         $statusFilter = $request->input('statusFilter', 'all');
 
-        $query = Order::with(['orderBookables.bookable', 'customer'])
-            ->select('orders.*')
-            ->addSelect(DB::raw('(SELECT start_time FROM order_bookables WHERE order_bookables.order_id = orders.id LIMIT 1) as booking_time'));
+        //Create a unique cache key based on filters, page is included to ensure pagination works correctly
+        $cacheKey = "orders_{$search}_{$timeFilter}_{$statusFilter}" . $request->input('page', 1);
+        $cacheDuration = 30; //minutes
 
-        // Apply search filter if provided
-        if ($search) {
-            $query->whereHas('customer', function ($q) use ($search) {
-                $q->where(DB::raw("CONCAT(first_name, ' ', last_name)"), 'LIKE', "%{$search}%");
-            });
-        }
+        // Try to get data from cache first
+        $orders = Cache::remember($cacheKey, $cacheDuration, function () use ($search, $timeFilter, $statusFilter) {
+            $query = Order::with(['orderBookables.bookable', 'customer'])
+                ->select('orders.*')
+                ->addSelect(DB::raw('(SELECT start_time FROM order_bookables WHERE order_bookables.order_id = orders.id LIMIT 1) as booking_time'));
 
-        // Apply time filter
-        if ($timeFilter !== 'all') {
-            //$now = now(); //UTC default timezone
-            $now = now()->timezone('America/New_York');
-            if ($timeFilter === 'future') {
-                $query->whereExists(function ($q) use ($now) {
-                    $q->select(DB::raw(1))
-                        ->from('order_bookables')
-                        ->whereColumn('order_bookables.order_id', 'orders.id')
-                        ->where('end_time', '>', $now);
-                });
-            } else if ($timeFilter === 'past') {
-                $query->whereExists(function ($q) use ($now) {
-                    $q->select(DB::raw(1))
-                        ->from('order_bookables')
-                        ->whereColumn('order_bookables.order_id', 'orders.id')
-                        ->where('end_time', '<=', $now);
+            // Apply search filter if provided
+            if ($search) {
+                $query->whereHas('customer', function ($q) use ($search) {
+                    $q->where(DB::raw("CONCAT(first_name, ' ', last_name)"), 'LIKE', "%{$search}%");
                 });
             }
-        }
 
-        // Apply status filter
-        if ($statusFilter !== 'all') {
-            $query->where('status', $statusFilter);
-        }
+            // Apply time filter
+            if ($timeFilter !== 'all') {
+                $now = now()->timezone('America/New_York');
+                if ($timeFilter === 'future') {
+                    $query->whereHas('orderBookables', function ($q) use ($now) {
+                        $q->where('start_time', '>=', $now);
+                    });
+                } else if ($timeFilter === 'past') {
+                    $query->whereHas('orderBookables', function ($q) use ($now) {
+                        $q->where('start_time', '<', $now);
+                    });
+                }
+            }
 
-        // Apply sorting
-        $orders = $query->orderBy('booking_time', 'asc')
-            ->paginate(10)
-            ->withQueryString();
+            // Apply status filter
+            if ($statusFilter !== 'all') {
+                $query->where('status', $statusFilter);
+            }
 
+            // Apply sorting and return paginated results
+            return $query->orderBy('booking_time', 'asc')
+                ->paginate(10)
+                ->withQueryString(); // Preserve query string on pagination links
+        });
 
+        // These are small tables so we can cache them for longer - 60 minutes
+        $contractors = Cache::remember('contractors', 60, function () {
+            return Contractor::with('role')->get();
+        });
 
-        $contractors = Contractor::with('role')->get();
-        $contractorRoles = ContractorRole::all();
-        $rooms = Room::all();
-        $products = Product::all();
+        $contractorRoles = Cache::remember('contractorRoles', 60, function () {
+            return ContractorRole::all();
+        });
+
+        $rooms = Cache::remember('rooms', 60, function () {
+            return Room::all();
+        });
+
+        $products = Cache::remember('products', 60, function () {
+            return Product::all();
+        });
+
 
         return Inertia::render('Dashboard', [
             'orders' => $orders,
@@ -107,6 +126,9 @@ class OrderController extends Controller
             $order->status = OrderStatus::COMPLETED;
             $order->save();
         }
+        // Clear order cache (status has changed) and contractor cache (contractor availability has changed)
+        $this->invalidateOrdersCache();
+        Cache::forget('contractors');
 
         return back()->with('success', 'Contractor assigned successfully');
     }
@@ -182,6 +204,10 @@ class OrderController extends Controller
         $orderBookable->quantity = 1;
         $orderBookable->status = OrderBookableStatus::ADMIN_BLOCKED;
         $orderBookable->save();
+
+        // The 'rooms' cache needs to be cleared as room availability has changed
+        $this->invalidateOrdersCache();
+        Cache::forget('rooms');
 
         return redirect()->route('dashboard')->with('success', 'Room has been successfully blocked for the selected time period.');
     }
