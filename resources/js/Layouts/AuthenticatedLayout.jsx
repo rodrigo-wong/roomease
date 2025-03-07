@@ -28,7 +28,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                     href={route('dashboard')}
                                     active={route().current('dashboard')}
                                 >
-                                    ROOM BOOKINGS
+                                    Room Bookings
                                 </NavLink>
                                 <NavLink
                                     href={route('bookables.index')}
@@ -36,6 +36,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Bookables
                                 </NavLink>
+                                <NavLink
+                                href={route('admin.invitations.index')}
+                                active={route().current('admin.invitations.index')}
+                            >
+                                Admin Management
+                            </NavLink>
                             </div>
                         </div>
 

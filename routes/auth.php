@@ -9,14 +9,18 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\AdminInvitationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    // Invitation-based registration routes
+    Route::get('register/{token}', [RegisteredUserController::class, 'createWithInvitation'])
+        ->name('register.with.invitation');
+    Route::post('register/{token}', [RegisteredUserController::class, 'storeWithInvitation'])
+        ->name('register.with.invitation.store');
 
+    //login and password reset routes
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
@@ -57,3 +61,11 @@ Route::middleware('auth')->group(function () {
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
 });
+
+//Admin invitation management routes
+Route::get('admin/invitations', [AdminInvitationController::class, 'index'])
+    ->name('admin.invitations.index');
+Route::post('admin/invitations', [AdminInvitationController::class, 'store'])
+    ->name('admin.invitations.store');
+Route::delete('admin/invitations/{invitation}', [AdminInvitationController::class, 'destroy'])
+    ->name('admin.invitations.destroy');
