@@ -219,7 +219,19 @@ class BookableController extends Controller
                 'phone_number' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255',
             ]);
+
+            // If it's a contractor and the description was updated, update the role's description
+            if ($request->has('description')) {
+                // Update the role description
+                $role = ContractorRole::find($request->role_id);
+                if ($role) {
+                    $role->description = $request->description;
+                    $role->save();
+                }
+            }
         }
+
+
 
         if ($bookable->bookable_type === BookableType::PRODUCT) {
             $request->validate([

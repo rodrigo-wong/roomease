@@ -45,9 +45,18 @@ const BookablesEdit = ({
         return role ? role.rate : 0;
     };
 
+    const findContractorDescription = (id) => {
+        const role = contractorRoles.find((role) => role.id == id);
+        return role ? role.description : "";
+    }
+
     useEffect(() => {
         if (data.bookable_type === "contractor") {
-            setData("rate", findContractorRate(data.role_id));
+            setData({
+                ...data,
+                rate: findContractorRate(data.role_id),
+                description: findContractorDescription(data.role_id)
+            });
         }
     }, [data.role_id]);
 
@@ -323,7 +332,13 @@ const BookablesEdit = ({
 
                     {/* Description */}
                     <div>
-                        <label className="block font-medium">Description</label>
+                        <label className="block font-medium"> {data.bookable_type === "contractor" ? "Role Description" : "Description"}
+                    </label>
+                {data.bookable_type === "contractor" && (
+                <p className="text-sm text-gray-500 mb-1">
+                    Note: This will update the description for all contractors with this role.
+                </p>
+                        )}
                         <textarea
                             className="w-full p-2 border rounded"
                             value={data.description}

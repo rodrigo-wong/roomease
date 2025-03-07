@@ -6,7 +6,8 @@ import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function AuthenticatedLayout({ header, children }) {
-    const user = usePage().props.auth.user;
+    const { auth } = usePage().props;
+    const user = auth.user;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -36,12 +37,22 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Bookables
                                 </NavLink>
-                                <NavLink
-                                href={route('admin.invitations.index')}
-                                active={route().current('admin.invitations.index')}
-                            >
-                                Admin Management
-                            </NavLink>
+                                {user && user.role === 'super_admin' && (
+                                    <NavLink 
+                                        href={route('admin.invitations.index')} 
+                                        active={route().current('admin.invitations.*')}
+                                    >
+                                        Admin Invitations
+                                    </NavLink>
+                                )}
+                                {user && user.role === 'super_admin' && (
+                                    <NavLink 
+                                        href={route('admin.users.index')} 
+                                        active={route().current('admin.users.*')}
+                                    >
+                                        Manage Admins
+                                    </NavLink>
+                                )}
                             </div>
                         </div>
 

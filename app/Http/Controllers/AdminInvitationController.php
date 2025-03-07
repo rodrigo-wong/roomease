@@ -13,10 +13,29 @@ use Illuminate\Support\Str;
 class AdminInvitationController extends Controller
 {
     /**
+     * Helper method to check super admin status
+     */
+    private function ensureSuperAdmin()
+    {
+        if (!Auth::user() || Auth::user()->role !== 'super_admin') {
+            return redirect()->route('dashboard')
+                ->with('error', 'Only super administrators can perform this action.');
+        }
+
+        return null;
+    }
+
+
+    /**
      * Display a list of admin invitations
      */
     public function index()
     {
+        // Check super admin permission
+        if ($redirect = $this->ensureSuperAdmin()) {
+            return $redirect;
+        }
+
         // Get active and recently accepted invitations
         $invitations = AdminInvitation::with('inviter')
             ->where(function ($query) {
@@ -27,8 +46,11 @@ class AdminInvitationController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+
+
         return Inertia::render('Admin/Invitations/Index', [
-            'invitations' => $invitations
+            'invitations' => $invitations,
+            'isSuperAdmin' => true,
         ]);
     }
 
@@ -37,6 +59,11 @@ class AdminInvitationController extends Controller
      */
     public function store(Request $request)
     {
+        // Check super admin permission
+        if ($redirect = $this->ensureSuperAdmin()) {
+            return $redirect;
+        }
+
         // Validate email and ensure it's not already in use
         $validated = $request->validate([
             'email' => [
@@ -76,6 +103,11 @@ class AdminInvitationController extends Controller
      */
     public function destroy(AdminInvitation $invitation)
     {
+        // Check super admin permission
+        if ($redirect = $this->ensureSuperAdmin()) {
+            return $redirect;
+        }
+
         // Prevent deleting accepted invitations
         if ($invitation->accepted_at) {
             return back()->with('error', 'Cannot delete accepted invitation');
