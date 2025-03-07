@@ -16,9 +16,9 @@ class AdminUserSeeder extends Seeder
     {
         // Create initial admin user 
         User::create([
-            'name' => 'Admin User',
-            'email' => 'admin@roomease.com',
-            'password' => Hash::make('admin123!'),
+            'name' => env('DEFAULT_ADMIN_NAME', 'Admin User'),
+            'email' => env('DEFAULT_ADMIN_EMAIL', 'admin@roomease.com'),
+            'password' => Hash::make(env('DEFAULT_ADMIN_PASSWORD', 'admin123!')),
             'email_verified_at' => now(),
         ]);
     }
