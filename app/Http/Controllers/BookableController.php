@@ -130,6 +130,8 @@ class BookableController extends Controller
             }
         }
 
+
+
         return redirect()->route('bookables.index')->with('success', 'Bookable created successfully!');
     }
 

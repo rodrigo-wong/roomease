@@ -27,6 +27,7 @@
         "@inertiajs/inertia-react": "^0.8.1",
         "@mui/icons-material": "^6.4.3",
         "@mui/material": "^6.4.3",
+        "@tippyjs/react": "^4.2.6",
         "build": "^0.1.4",
         "npm": "^11.1.0",
         "react-calendar": "^5.1.0",
