@@ -1,6 +1,6 @@
-import React, { useState, } from "react";
-import { router } from "@inertiajs/react";
-import { Link, usePage } from "@inertiajs/inertia-react";
+import React, { useState, useEffect } from "react";
+import { router, usePage } from "@inertiajs/react";
+import { Link } from "@inertiajs/inertia-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import ProductTable from "./Partials/ProductTable";
 import ContractorTable from "./Partials/ContractorTable";
@@ -8,23 +8,43 @@ import RoomTable from "./Partials/RoomTable";
 import { Head } from "@inertiajs/react";
 
 const BookablesIndex = ({ products, rooms, contractors }) => {
-    // State to track active tab
-    const [activeTab, setActiveTab] = useState("products");
-  
-    
-    // Function to get the currently active bookables
-    const getBookables = () => {
-        switch (activeTab) {
-            case "products":
-                return products;
-            case "rooms":
-                return rooms;
-            case "contractors":
-                return contractors;
-            default:
-                return [];
-        }
+       // Get tab directly from window.location.search
+       const getTabFromUrl = () => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('tab') || 'products';
     };
+    
+    // Set the active tab based on URL directly
+    const [activeTab, setActiveTab] = useState(getTabFromUrl());
+    
+    // Update tab whenever the URL changes
+    useEffect(() => {
+        const handleUrlChange = () => {
+            const currentTab = getTabFromUrl();
+            setActiveTab(currentTab);
+        };
+        
+        // Listen for popstate events (browser back/forward)
+        window.addEventListener('popstate', handleUrlChange);
+        
+        // Initial check on component mount
+        handleUrlChange();
+        
+        // Cleanup
+        return () => window.removeEventListener('popstate', handleUrlChange);
+    }, []);
+    
+    const handleTabChange = (tabName) => {
+        setActiveTab(tabName);
+        
+        // Update the URL without a full page reload
+        router.get(route('bookables.index'), { tab: tabName }, {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true,
+        });
+    };
+    
 
 
     return (
@@ -58,7 +78,7 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                             {/* Tabs for Products, Rooms, and Contractors */}
                             <div className="flex border-b border-gray-200 mb-6">
                                 <button
-                                    onClick={() => setActiveTab("products")}
+                                    onClick={() => handleTabChange("products")}
                                     className={`py-2 px-4 font-medium text-sm border-b-2 focus:outline-none ${
                                         activeTab === "products"
                                             ? "border-indigo-500 text-indigo-600"
@@ -68,7 +88,7 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                     Products
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab("rooms")}
+                                    onClick={() => handleTabChange("rooms")}
                                     className={`py-2 px-4 font-medium text-sm border-b-2 focus:outline-none ${
                                         activeTab === "rooms"
                                             ? "border-indigo-500 text-indigo-600"
@@ -78,7 +98,7 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                     Rooms
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab("contractors")}
+                                    onClick={() => handleTabChange("contractors")}
                                     className={`py-2 px-4 font-medium text-sm border-b-2 focus:outline-none ${
                                         activeTab === "contractors"
                                             ? "border-indigo-500 text-indigo-600"

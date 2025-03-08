@@ -27,7 +27,7 @@ class BookableController extends Controller
      */
     public function index()
     {
-        //dd(Bookable::contractors()->get());
+
         return Inertia::render('Bookables/Index', [
             'products' => fn() => Bookable::products()->get(),
             'rooms' => fn() => Bookable::rooms()->get(),
@@ -132,7 +132,7 @@ class BookableController extends Controller
 
 
 
-        return redirect()->route('bookables.index')->with('success', 'Bookable created successfully!');
+        return redirect()->route('bookables.index', ['tab' => $request->bookable_type . 's'])->with('success', 'Bookable created successfully!');
     }
 
 
@@ -308,7 +308,7 @@ class BookableController extends Controller
             }
         }
 
-        return redirect()->route('bookables.index')
+        return redirect()->route('bookables.index', ['tab' => $bookable->bookable_type->value . 's'])
             ->with('success', 'Bookable updated successfully!');
     }
 
