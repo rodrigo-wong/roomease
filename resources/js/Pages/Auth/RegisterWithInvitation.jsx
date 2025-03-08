@@ -28,7 +28,7 @@ export default function RegisterWithInvitation({ email, token }) {
         <GuestLayout>
             <Head title="Complete Registration" />
 
-            <div className="p-6">
+            <div className="p-6 mb-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6">Complete Your Admin Registration</h2>
                 
                 <div className="mb-6 bg-blue-50 p-4 rounded-lg">
