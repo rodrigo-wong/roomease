@@ -11,6 +11,7 @@ use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\CheckoutController;
 
 Route::get('/', function () {
     return Inertia::render('Booking', [
@@ -38,6 +39,10 @@ Route::get('/contractor/confirmation', [ContractorController::class, 'confirm'])
     ->middleware('signed');
 
 Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+
+Route::post('/checkout', [CheckoutController::class, 'checkout'])->name('checkout');
+Route::get('/success', [CheckoutController::class, 'success'])->name('payment.success');
+Route::get('/cancel', [CheckoutController::class, 'cancel'])->name('payment.cancel');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
