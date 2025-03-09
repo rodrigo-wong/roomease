@@ -44,10 +44,7 @@ const Booking = ({ rooms }) => {
     const handleSubmit = () => {
         // setIsSubmitting(true);
         // Combine selected product and contractor add-ons into one array if needed.
-        const addons = [
-            ...selectedProducts,
-            ...selectedContractors
-        ];
+        const addons = [...selectedProducts, ...selectedContractors];
 
         const bookingData = {
             first_name: firstName,
@@ -61,24 +58,34 @@ const Booking = ({ rooms }) => {
             total_amount: totalAmount,
             hours: hours,
         };
-        router.post(route("booking.store"), bookingData, {
-            onSuccess: () => {
-                toast.success("Booking created successfully!");
-                router.push("/");
-            },
-            onError: (errors) => {
+        axios
+            .post(route("checkout"), bookingData)
+            .then((response) => {
+                // Redirect to the Stripe checkout URL from the JSON response.
+                window.location.href = response.data.checkout_url;
+            })
+            .catch((error) => {
                 setIsSubmitting(false);
-                Object.values(errors).forEach((error) => {
-                    toast.error(error);
-                });
-                console.error(errors);
-            },
-            onFinish: () => {
+                // Check if there are validation errors in the response
+                if (
+                    error.response &&
+                    error.response.data &&
+                    error.response.data.errors
+                ) {
+                    const errors = error.response.data.errors;
+                    Object.values(errors).forEach((errorMessage) => {
+                        toast.error(errorMessage);
+                    });
+                } else {
+                    toast.error("An unexpected error occurred.");
+                }
+                console.error(error);
+            })
+            .finally(() => {
                 setIsSubmitting(false);
-            },
-        });
+            });
     };
-    
+
     //TODO: add a message when no timeslots are available
     // Fetch available time slots when room, date and hours are selected
     useEffect(() => {
@@ -145,7 +152,7 @@ const Booking = ({ rooms }) => {
                     return null;
                 })
                 .filter((item) => item !== null);
-                console.log(updatedContractors);
+            console.log(updatedContractors);
             setSelectedContractors(updatedContractors);
         }
     }, [selectedCounts, availableAddons.contractor]);
@@ -247,11 +254,11 @@ const Booking = ({ rooms }) => {
     // Calculate total cost
     const roomSubtotal = selectedRoom ? selectedRoom.rate * hours : 0;
     const productsSubtotal = selectedProducts.reduce(
-        (sum, addon) => sum + addon.rate * hours,
+        (sum, addon) => sum + addon.rate * hours * (addon.quantity?? 1),
         0
     );
     const contractorsSubtotal = selectedContractors.reduce(
-        (sum, addon) => sum + addon.rate * addon.quantity,
+        (sum, addon) => sum + addon.rate * addon.quantity * hours,
         0
     );
     const totalAmount = roomSubtotal + productsSubtotal + contractorsSubtotal;
@@ -662,11 +669,9 @@ const Booking = ({ rooms }) => {
                                             {bookable.quantity || 1}
                                         </td>
                                         <td className="border p-2">
+                                                
                                             $
-                                            {bookable.bookable_type
-                                                ? bookable.rate * hours
-                                                : bookable.rate *
-                                                  bookable.quantity}
+                                            {bookable.rate * hours * (bookable.quantity || 1)}
                                         </td>
                                     </tr>
                                 ))}
