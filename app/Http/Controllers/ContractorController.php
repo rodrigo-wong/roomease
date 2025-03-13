@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Traits\CacheInvalidationTrait;
+use Inertia\Inertia;
 
 class ContractorController extends Controller
 {
@@ -36,7 +37,12 @@ class ContractorController extends Controller
         $orderBookableToBeFilled = $order->orderBookables()->where('status', OrderStatus::PENDING)->where('bookable_type', ContractorRole::class)->where('bookable_id', $validated['role_id'])->first();;
         if (!$orderBookableToBeFilled) {
             // TODO: Inertia returned a React file for confirm landing page
-
+            // pass in message as ERROR, already taken and other property
+            return Inertia::render('Landing/ContractorsLandingPage', [
+                'status' => -1,
+                'message' => 'Someone already took this job',
+                'person' => Contractor::find($validated['contractor_id']),
+            ]);
             dd("Job already taken");
         } else {
             $orderBookableToBeFilled->status = OrderBookableStatus::CONFIRMED;
@@ -57,8 +63,17 @@ class ContractorController extends Controller
 
 
         // TODO: Inertia returned a React file for confirm landing page
+        // pass in message as SUCCESS, contractor confirmed and other property
+        return Inertia::render('Landing/ContractorsLandingPage', [
+            'status' => 1,
+            'message' => 'You have successfully booked this job',
+            'person' => Contractor::find($validated['contractor_id']),
+        ]);
         dd("Contractor confirmed");
 
         return redirect()->back();
+
+        // mail pit - install
+        //
     }
 }
