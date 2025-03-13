@@ -19,6 +19,7 @@ class OrderConfirmation extends Mailable
      */
     public $order;
     public $customer;
+    public $orderBookables;
 
     /**
      * Create a new message instance.
@@ -30,6 +31,7 @@ class OrderConfirmation extends Mailable
     {
         $this->order = $order->load('orderBookables.bookable');
         Log::info($this->order);
+        $this->orderBookables = $order->orderBookables;
         $this->customer = $order->customer;
         Log::info($this->customer);
     }
@@ -45,6 +47,8 @@ class OrderConfirmation extends Mailable
                     ->view('emails.order_confirmation')
                     ->with([
                         'order' => $this->order,
+                        'orderBookables' => $this->orderBookables,
+                        'customer' => $this->customer
                     ]);
     }
 }
