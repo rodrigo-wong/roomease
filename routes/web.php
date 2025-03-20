@@ -1,22 +1,41 @@
 <?php
 
 use Inertia\Inertia;
+use App\Models\Order;
 use App\Models\Bookable;
+use App\Models\OrderBookable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Session;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\BookingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BookableController;
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\ContractorRoleController;
 use App\Http\Controllers\ProductCategoryController;
-use App\Http\Controllers\BookingController;
-use App\Http\Controllers\ContractorController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\CheckoutController;
 
 Route::get('/', function () {
+    // Log::info('Session: '.  session()->getId());
+    // Log::info('Session: ',  session()->all());
+    // if (session()->has('payment_intent')) {
+    //     $paymentIntentId = session('payment_intent');
+    //     $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
+    //     $paymentIntent->cancel();
+    //     session()->forget('payment_intent');
+    //     dd($paymentIntentId);
+    // }
     return Inertia::render('Booking', [
         'rooms' => Bookable::rooms()->get(),
     ]);
+})->name('client.home');
+
+
+Route::get('/test', function () {
+    $order = Order::find(80);
+    $orderDetails = $order->orderBookables()->with('bookable')->get();
 });
 Route::get('/time-slots/{room}', [BookableController::class, 'getAvailableTimes'])->name('bookable.time-slots');
 Route::get('/available/bookables', [BookableController::class, 'getAvailableBookables'])->name('bookable.available');
@@ -34,11 +53,13 @@ Route::post('/orders/admin-booking', [OrderController::class, 'createAdminBookin
     ->name('orders.admin-booking')
     ->middleware(['auth']);
 
+
 Route::get('/contractor/confirmation', [ContractorController::class, 'confirm'])
     ->name('contractor.confirmation')
     ->middleware('signed');
 
 Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+Route::post('/order/{order}', [OrderController::class, 'destroy'])->name('order.destroy');
 
 Route::post('/checkout', [CheckoutController::class, 'checkout'])->name('checkout');
 Route::get('/success', [CheckoutController::class, 'success'])->name('payment.success');
