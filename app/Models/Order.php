@@ -39,4 +39,9 @@ class Order extends Model
             return $orderBookable->status === OrderBookableStatus::CONFIRMED->value;
         });
     }
+
+    public function details()
+    {
+        return $this->orderBookables()->with('bookable')->get();
+    }
 }
