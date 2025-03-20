@@ -2,22 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Room;
-use App\Models\Customer;
-use App\Models\Order;
-use App\Models\OrderBookable;
-use App\Models\Product;
-use App\Models\ContractorRole;
-use App\Enums\OrderStatus;
-use App\Enums\OrderBookableStatus;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 use Stripe\Stripe;
-use Stripe\Checkout\Session as StripeSession;
+use App\Models\Room;
+use Inertia\Inertia;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\Customer;
+use Stripe\PaymentIntent;
+use App\Enums\OrderStatus;
+use Illuminate\Http\Request;
+use App\Models\OrderBookable;
+use App\Models\ContractorRole;
 use App\Mail\OrderConfirmation;
+use App\Enums\OrderBookableStatus;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Mail\ContractorConfirmation;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Session;
+use Stripe\Checkout\Session as StripeSession;
 
 class CheckoutController extends Controller
 {
@@ -26,7 +29,7 @@ class CheckoutController extends Controller
         DB::beginTransaction();
 
         try {
-            // Validate the request data
+            // Validate the request data.
             $validated = $request->validate([
                 'first_name'   => 'required|string|max:255',
                 'last_name'    => 'required|string|max:255',
@@ -37,10 +40,15 @@ class CheckoutController extends Controller
                 'timeslots'    => 'required|array',
                 'addons'       => 'nullable|array',
                 'total_amount' => 'required|numeric',
-                'hours'        => 'required|integer|min:1'
+                'hours'        => 'required|integer|min:1',
+                'order'        => 'nullable|integer'
             ]);
-
-            // Find or create the customer
+            if($validated['order']){
+                Log::info('Order found: ' . $validated['order']);
+                $order = Order::find($validated['order']);
+                $order->delete();
+            }
+            // Find or create the customer.
             $customer = Customer::firstOrCreate(
                 ['email' => $validated['email']],
                 [
@@ -50,17 +58,18 @@ class CheckoutController extends Controller
                 ]
             );
 
-            // Create the order (pending)
+            // Create the order (with a pending status).
             $order = Order::create([
                 'customer_id'  => $customer->id,
                 'total_amount' => $validated['total_amount'],
                 'status'       => OrderStatus::PROCESSING,
             ]);
 
-            // Create the room booking
+            // Create the room booking.
+            $room = Room::where('bookable_id', $validated['room_id'])->firstOrFail();
             OrderBookable::create([
                 'order_id'      => $order->id,
-                'bookable_id'   => $validated['room_id'],
+                'bookable_id'   => $room->id,
                 'bookable_type' => Room::class,
                 'quantity'      => 1,
                 'status'        => OrderBookableStatus::CONFIRMED,
@@ -68,123 +77,58 @@ class CheckoutController extends Controller
                 'end_time'      => $validated['date'] . ' ' . $validated['timeslots'][1],
             ]);
 
-            $contractorEmails = [];
-            // Create addon bookings if provided
+            // Process add-on bookings, if provided.
             if (!empty($validated['addons'])) {
                 foreach ($validated['addons'] as $addon) {
-                    $orderData = [
+                    OrderBookable::create([
                         'order_id'      => $order->id,
-                        'bookable_id'   => $addon['bookable_type'] === 'product' ? $addon['id'] : $addon['role'],
-                        'bookable_type' => $addon['bookable_type'] === 'product' ? Product::class : ContractorRole::class,
+                        'bookable_id'   => $addon['bookable_type'] === 'product'
+                            ? Product::where('bookable_id', $addon['id'])->first()->id
+                            : $addon['role'],
+                        'bookable_type' => $addon['bookable_type'] === 'product'
+                            ? Product::class
+                            : ContractorRole::class,
                         'quantity'      => 1,
                         'status'        => $addon['bookable_type'] === 'product'
                             ? OrderBookableStatus::CONFIRMED
                             : OrderBookableStatus::PENDING,
                         'start_time'    => $validated['date'] . ' ' . $validated['timeslots'][0],
                         'end_time'      => $validated['date'] . ' ' . $validated['timeslots'][1],
-                    ];
-
-                    $quantity = isset($addon['quantity']) ? $addon['quantity'] : 1;
-                    for ($i = 0; $i < $quantity; $i++) {
-                        OrderBookable::create($orderData);
-                    }
-                    if ($addon['bookable_type'] === 'contractor') {
-                        $contractorEmails[] = [
-                            'role'   => ContractorRole::find($addon['role']),
-                            'emails' => $addon['emails']
-                        ];
-                    }
+                    ]);
                 }
             }
 
-            // Set Stripe secret key
-            Stripe::setApiKey(env('STRIPE_SECRET'));
+            // Set the Stripe secret key.
+            \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
 
-            // Build Stripe line items
-            $lineItems = [];
-            $room = Room::where('bookable_id', $validated['room_id'])->with('bookable')->first();
-            if (!$room) {
-                throw new \Exception("Room not found.");
-            }
-            $roomData = $room->toArray();
-
-            $lineItems[] = [
-                'price_data' => [
-                    'currency'     => 'usd',
-                    'product_data' => [
-                        'name' => $roomData['name'],
-                    ],
-                    'unit_amount'  => $roomData['bookable']['rate'] * 100, // amount in cents
+            // Create a PaymentIntent with manual capture enabled.
+            $paymentIntent = \Stripe\PaymentIntent::create([
+                'amount'                => $validated['total_amount'] * 100, // amount in cents
+                'currency'              => 'usd',
+                'payment_method_types'  => ['card'],
+                'capture_method'        => 'manual',
+                'metadata'              => [
+                    'order_id' => $order->id,
+                    // Add any additional metadata as needed.
                 ],
-                'quantity'   => $validated['hours'],
-            ];
-
-            if (!empty($validated['addons'])) {
-                foreach ($validated['addons'] as $addon) {
-                    if ($addon['bookable_type'] === 'product') {
-                        $lineItems[] = [
-                            'price_data' => [
-                                'currency'     => 'usd',
-                                'product_data' => [
-                                    'name' => $addon['product']['name'],
-                                ],
-                                'unit_amount'  => $addon['rate'] * 100,
-                            ],
-                            'quantity'   => $validated['hours'],
-                        ];
-                    } elseif ($addon['bookable_type'] === 'contractor') {
-                        for ($i = 0; $i < $addon['quantity']; $i++) {
-                            $lineItems[] = [
-                                'price_data' => [
-                                    'currency'     => 'usd',
-                                    'product_data' => [
-                                        'name' => $addon['role_name'],
-                                    ],
-                                    'unit_amount'  => $addon['rate'] * 100,
-                                ],
-                                'quantity'   => $validated['hours'],
-                            ];
-                        }
-                    }
-                }
-            }
-
-            $contractorsMetadata = [];
-        
-            foreach ($contractorEmails as $contractorType) {
-                foreach ($contractorType['emails'] as $email) {
-                    $contractorsMetadata[] = [
-                        'role'  => $contractorType['role']['id'],
-                        'email' => $email,
-                    ];
-                }
-            }
-            // Include order_id in metadata and create cancel URL with order id parameter
-            $metadata = [
-                'order_id' => $order->id,
-                'contractors' => json_encode($contractorsMetadata),
-            ];
-
-            $session = StripeSession::create([
-                'payment_method_types' => ['card'],
-                'line_items'           => $lineItems,
-                'mode'                 => 'payment',
-                'success_url'          => route('payment.success') . '?session_id={CHECKOUT_SESSION_ID}',
-                // Use a cancel URL that includes the order id
-                'cancel_url'           => route('payment.cancel', ['order' => $order->id]),
-                'metadata'             => $metadata,
             ]);
 
-            // Everything succeeded; commit the transaction
+            // Store the PaymentIntent ID in session.
+            session(['payment_intent' => $paymentIntent->id]);
+
+            // Commit the transaction.
             DB::commit();
 
-            return response()->json(['checkout_url' => $session->url]);
+            // Return the client secret so the frontend can complete payment.
+            return response()->json(['client_secret' => $paymentIntent->client_secret, 'order' => $order->id]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Checkout failed: " . $e->getMessage());
-            return back()->withErrors(['error' => 'Failed to create booking: ' . $e->getMessage()]);
+            return response()->json(['error' => 'Failed to create booking: ' . $e->getMessage()], 500);
         }
     }
+
+
 
     /**
      * Cancel route to clean up if payment fails.
@@ -192,6 +136,7 @@ class CheckoutController extends Controller
      */
     public function cancel(Request $request)
     {
+        Log::info('Payment cancelled: ' . $request->query('order'));
         // Expect the order id as a query parameter (passed in via the cancel URL)
         $orderId = $request->query('order');
 
@@ -209,8 +154,8 @@ class CheckoutController extends Controller
                 $order->delete();
             }
         });
-
-        return redirect()->route('checkout')->with('error', 'Payment failed. Your booking was cancelled.');
+        Log::info("Order {$orderId} and related records deleted.");
+        return redirect()->route('client.home');
     }
 
     public function success(Request $request)
@@ -224,37 +169,70 @@ class CheckoutController extends Controller
         try {
             Stripe::setApiKey(env('STRIPE_SECRET'));
             $session = StripeSession::retrieve($sessionId);
+            $paymentIntentId = $session->payment_intent;
 
-            if ($session->payment_status !== 'paid') {
-                return redirect()->route('checkout')->withErrors(['error' => 'Payment not completed.']);
+            if (!$paymentIntentId) {
+                return redirect()->route('client.home')->withErrors(['error' => 'No payment intent found.']);
             }
 
             // Retrieve the order from metadata
             $orderId = $session->metadata->order_id ?? null;
             if (!$orderId) {
-                return redirect()->route('checkout')->withErrors(['error' => 'Order not found.']);
+                // Order ID missing, cancel PaymentIntent
+                try {
+                    $paymentIntent = PaymentIntent::retrieve($session->payment_intent);
+                    $paymentIntent->cancel();
+
+                    Log::info("PaymentIntent {$paymentIntentId} canceled due to missing order_id.");
+                } catch (\Exception $e) {
+                    Log::error("Error canceling PaymentIntent: " . $e->getMessage());
+                }
+                return redirect()->route('client.home')->withErrors(['error' => 'Order not found. Payment canceled.']);
             }
 
+            /**
+             * @var Order $order
+             */
             $order = Order::find($orderId);
             if (!$order) {
-                return redirect()->route('checkout')->withErrors(['error' => 'Order not found in our records.']);
+                // Order not found, cancel PaymentIntent
+                try {
+                    $paymentIntent = PaymentIntent::retrieve($session->payment_intent);
+                    $paymentIntent->cancel();
+                    Log::info("PaymentIntent {$paymentIntentId} canceled because order {$orderId} was not found.");
+                } catch (\Exception $e) {
+                    Log::error("Error canceling PaymentIntent: " . $e->getMessage());
+                }
+                return redirect()->route('client.home')->withErrors(['error' => 'Order expired in our records. Payment canceled.']);
             }
-            $order->status = $order->isCompleted() ? OrderStatus::COMPLETED : OrderStatus::PENDING;
+
+            // At this point, the order is valid.
+            // Capture the PaymentIntent manually.
+            $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
+            $captured = $paymentIntent->capture();
+            if ($captured->status !== 'succeeded') {
+                return redirect()->route('checkout')->withErrors(['error' => 'Payment capture failed.']);
+            }
+
+            // Update order status accordingly
+            $order->status = $order->isCompleted() ? OrderStatus::COMPLETED->value : OrderStatus::PENDING->value;
             $order->save();
+
             // Now send confirmation emails since payment is successful
             $customer = $order->customer;
             $contractors = json_decode($session->metadata->contractors, true) ?? [];
             Mail::to($customer->email)->send(new OrderConfirmation($order));
-            // Group emails by role ID.
+
+            // Group contractor emails by role ID.
             $groupedContractors = [];
             foreach ($contractors as $contractor) {
                 $roleId = $contractor['role'];
                 $groupedContractors[$roleId][] = $contractor['email'];
             }
-            
+
             // Retrieve all roles in one query.
             $roles = ContractorRole::whereIn('id', array_keys($groupedContractors))->get()->keyBy('id');
-            
+
             // Send emails using the grouped data.
             foreach ($groupedContractors as $roleId => $emails) {
                 $role = $roles->get($roleId);
@@ -262,13 +240,10 @@ class CheckoutController extends Controller
                     Mail::to($email)->send(new ContractorConfirmation($order, $role, $email));
                 }
             }
-            
-
-            dd('Emails sent successfully');
-            return view('success', ['order' => $order]);
+            $orderDetails = $order->details();
+            dd('confirmed');
         } catch (\Exception $e) {
             Log::error("Payment success processing error: " . $e->getMessage());
-            dd($e->getMessage());
             return redirect()->route('checkout')->withErrors(['error' => 'An error occurred while processing payment success.']);
         }
     }
