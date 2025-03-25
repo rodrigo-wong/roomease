@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use Inertia\Inertia;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use Illuminate\Http\Request;
 use App\Models\ContractorRole;
@@ -26,7 +28,13 @@ class PaymentController extends Controller
         }
         $payment->status = PaymentStatus::SUCCEEDED->value;
         $payment->save();
+
+        $order->update([
+            'status' => OrderStatus::COMPLETED->value,
+        ]);
+
         $customer = $order->customer;
+
         // Send confirmation emails.
         Mail::to($customer->email)->send(new OrderConfirmation($order));
 
@@ -48,7 +56,11 @@ class PaymentController extends Controller
                 Mail::to($email)->send(new ContractorConfirmation($order, $contractorType['role'], $email));
             }
         }
-        dd("Order confirmed and Payment successful");
-        return redirect()->back()->with('success', 'Payment successful');
+        
+
+        dd('Order confirmed and payment succeeded');
+        return Inertia::render('Orders/Confirmed', [
+            'order' => $order->load('details'),
+        ]);
     }
 }
