@@ -10,6 +10,8 @@ import {
     Alert,
     Box,
 } from "@mui/material";
+import toast from "react-hot-toast";
+import { router } from "@inertiajs/react";
 
 // Options to style the CardElement with a MUI-friendly look.
 const CARD_ELEMENT_OPTIONS = {
@@ -29,7 +31,7 @@ const CARD_ELEMENT_OPTIONS = {
     },
 };
 
-const PaymentForm = ({ clientSecret }) => {
+const PaymentForm = ({ clientSecret, order, contractors }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState(null);
@@ -52,9 +54,16 @@ const PaymentForm = ({ clientSecret }) => {
         if (error) {
             setError(error.message);
             setProcessing(false);
+            toast.error(
+                error ? error.message : "An error occurred. Please try again."
+            );
         } else {
             console.log("Payment successful", paymentIntent);
-            // Add further logic on success (e.g. redirect or update UI)
+            console.log(order);
+            router.post(route("payment.store", { order: order }), {
+                payment_intent: paymentIntent.id,
+                contractors: contractors,
+            });
         }
     };
 
