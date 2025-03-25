@@ -6,6 +6,7 @@ use Stripe\Stripe;
 use App\Models\Room;
 use Inertia\Inertia;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Customer;
 use Stripe\PaymentIntent;
@@ -13,6 +14,7 @@ use App\Enums\OrderStatus;
 use Illuminate\Http\Request;
 use App\Models\OrderBookable;
 use App\Models\ContractorRole;
+use Illuminate\Support\Carbon;
 use App\Mail\OrderConfirmation;
 use App\Enums\OrderBookableStatus;
 use Illuminate\Support\Facades\DB;
@@ -43,11 +45,83 @@ class CheckoutController extends Controller
                 'hours'        => 'required|integer|min:1',
                 'order'        => 'nullable|integer'
             ]);
-            if($validated['order']){
+
+            // If an order ID is provided, delete the existing order.
+            if (isset($validated['order']) && $validated['order']) {
                 Log::info('Order found: ' . $validated['order']);
-                $order = Order::find($validated['order']);
-                $order->delete();
+                $orderToDelete = Order::find($validated['order']);
+                if ($orderToDelete) {
+                    $orderToDelete->delete();
+                }
             }
+
+            // Parse start and end times using Carbon.
+            $startTime = Carbon::parse($validated['date'] . ' ' . $validated['timeslots'][0]);
+            $endTime   = Carbon::parse($validated['date'] . ' ' . $validated['timeslots'][1]);
+
+            // ---------------------
+            // Conflict Check: Room
+            // ---------------------
+            $room = Room::where('bookable_id', $validated['room_id'])->firstOrFail();
+
+            $roomConflict = OrderBookable::where('bookable_id', $room->id)
+                ->where('bookable_type', Room::class)
+                ->where(function ($query) use ($startTime, $endTime) {
+                    $query->whereBetween('start_time', [$startTime, $endTime])
+                        ->orWhereBetween('end_time', [$startTime, $endTime])
+                        ->orWhere(function ($query) use ($startTime, $endTime) {
+                            $query->where('start_time', '<=', $startTime)
+                                ->where('end_time', '>=', $endTime);
+                        });
+                })->exists();
+
+            if ($roomConflict) {
+                throw new \Exception("The selected room is already booked for the chosen time slot.");
+            }
+
+            // ----------------------
+            // Conflict Check: Addons
+            // ----------------------
+            if (!empty($validated['addons'])) {
+                foreach ($validated['addons'] as $addon) {
+                    if ($addon['bookable_type'] === 'product') {
+                        $product = Product::where('bookable_id', $addon['id'])->firstOrFail();
+                        $addonConflict = OrderBookable::where('bookable_id', $product->id)
+                            ->where('bookable_type', Product::class)
+                            ->where(function ($query) use ($startTime, $endTime) {
+                                $query->whereBetween('start_time', [$startTime, $endTime])
+                                    ->orWhereBetween('end_time', [$startTime, $endTime])
+                                    ->orWhere(function ($query) use ($startTime, $endTime) {
+                                        $query->where('start_time', '<=', $startTime)
+                                            ->where('end_time', '>=', $endTime);
+                                    });
+                            })->exists();
+
+                        if ($addonConflict) {
+                            throw new \Exception("The product addon with ID {$addon['id']} is already booked for the chosen time slot.");
+                        }
+                    } elseif ($addon['bookable_type'] === 'contractor') {
+                        $addonConflict = OrderBookable::where('bookable_id', $addon['role'])
+                            ->where('bookable_type', ContractorRole::class)
+                            ->where(function ($query) use ($startTime, $endTime) {
+                                $query->whereBetween('start_time', [$startTime, $endTime])
+                                    ->orWhereBetween('end_time', [$startTime, $endTime])
+                                    ->orWhere(function ($query) use ($startTime, $endTime) {
+                                        $query->where('start_time', '<=', $startTime)
+                                            ->where('end_time', '>=', $endTime);
+                                    });
+                            })->exists();
+
+                        if ($addonConflict) {
+                            throw new \Exception("The contractor addon with role ID {$addon['role']} is already booked for the chosen time slot.");
+                        }
+                    }
+                }
+            }
+
+            // ---------------------
+            // Proceed with Booking
+            // ---------------------
             // Find or create the customer.
             $customer = Customer::firstOrCreate(
                 ['email' => $validated['email']],
@@ -58,7 +132,7 @@ class CheckoutController extends Controller
                 ]
             );
 
-            // Create the order (with a pending status).
+            // Create the order (with a processing status).
             $order = Order::create([
                 'customer_id'  => $customer->id,
                 'total_amount' => $validated['total_amount'],
@@ -66,21 +140,20 @@ class CheckoutController extends Controller
             ]);
 
             // Create the room booking.
-            $room = Room::where('bookable_id', $validated['room_id'])->firstOrFail();
             OrderBookable::create([
                 'order_id'      => $order->id,
                 'bookable_id'   => $room->id,
                 'bookable_type' => Room::class,
                 'quantity'      => 1,
                 'status'        => OrderBookableStatus::CONFIRMED,
-                'start_time'    => $validated['date'] . ' ' . $validated['timeslots'][0],
-                'end_time'      => $validated['date'] . ' ' . $validated['timeslots'][1],
+                'start_time'    => $startTime,
+                'end_time'      => $endTime,
             ]);
 
             // Process add-on bookings, if provided.
             if (!empty($validated['addons'])) {
                 foreach ($validated['addons'] as $addon) {
-                    OrderBookable::create([
+                    $orderData = [
                         'order_id'      => $order->id,
                         'bookable_id'   => $addon['bookable_type'] === 'product'
                             ? Product::where('bookable_id', $addon['id'])->first()->id
@@ -92,9 +165,14 @@ class CheckoutController extends Controller
                         'status'        => $addon['bookable_type'] === 'product'
                             ? OrderBookableStatus::CONFIRMED
                             : OrderBookableStatus::PENDING,
-                        'start_time'    => $validated['date'] . ' ' . $validated['timeslots'][0],
-                        'end_time'      => $validated['date'] . ' ' . $validated['timeslots'][1],
-                    ]);
+                        'start_time'    => $startTime,
+                        'end_time'      => $endTime,
+                    ];
+
+                    $quantity = isset($addon['quantity']) ? $addon['quantity'] : 1;
+                    for ($i = 0; $i < $quantity; $i++) {
+                        OrderBookable::create($orderData);
+                    }
                 }
             }
 
@@ -109,25 +187,33 @@ class CheckoutController extends Controller
                 'capture_method'        => 'manual',
                 'metadata'              => [
                     'order_id' => $order->id,
-                    // Add any additional metadata as needed.
                 ],
             ]);
 
-            // Store the PaymentIntent ID in session.
-            session(['payment_intent' => $paymentIntent->id]);
+            // Create the payment record.
+            Payment::create([
+                'customer_id'              => $customer->id,
+                'order_id'                 => $order->id,
+                'stripe_payment_intent_id' => $paymentIntent->id,
+                'amount'                   => $validated['total_amount'],
+                'currency'                 => 'usd',
+                'status'                   => 'pending', // Assuming this is an enum handled elsewhere
+            ]);
 
             // Commit the transaction.
             DB::commit();
 
             // Return the client secret so the frontend can complete payment.
-            return response()->json(['client_secret' => $paymentIntent->client_secret, 'order' => $order->id]);
+            return response()->json([
+                'client_secret' => $paymentIntent->client_secret,
+                'order'         => $order->id
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Checkout failed: " . $e->getMessage());
             return response()->json(['error' => 'Failed to create booking: ' . $e->getMessage()], 500);
         }
     }
-
 
 
     /**
