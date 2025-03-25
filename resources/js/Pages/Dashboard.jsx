@@ -58,13 +58,15 @@ export default function Dashboard({ orders, contractors, contractorRoles, rooms,
         
           if (bookable.bookable_type.includes('Room')) {
             if (!rooms) return 'Loading rooms...';
-            const room = rooms.find(room => room.bookable_id === bookable.bookable_id);
+            const room = rooms.find(room => room.id === bookable.bookable_id);
+            console.log(rooms);
+            console.log(bookable.bookable_id);
             return room ? room.name : 'Room not found';
         }
         
         if (bookable.bookable_type.includes('Product')) {
             if (!products) return 'Loading products...';
-            const product = products.find(product => product.bookable_id === bookable.bookable_id);
+            const product = products.find(product => product.id === bookable.bookable_id);
             return product ? product.name : 'Product not found';
         }  
         return 'Not assigned';
