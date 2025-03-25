@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Payment extends Model
 {
     protected $fillable = [
-        'user_id',
+        'customer_id',
         'order_id',
         'stripe_payment_intent_id',
         'amount',
@@ -19,9 +19,9 @@ class Payment extends Model
     /**
      * Get the user who made the payment.
      */
-    public function user(): BelongsTo
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Customer::class);
     }
 
     /**

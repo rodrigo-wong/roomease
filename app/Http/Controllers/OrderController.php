@@ -2,20 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\OrderBookableStatus;
-use App\Enums\OrderStatus;
-use App\Models\Order;
-use App\Models\Customer;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use App\Models\Contractor;
-use App\Models\ContractorRole;
-use App\Models\OrderBookable;
 use App\Models\Room;
+use Inertia\Inertia;
+use App\Models\Order;
 use App\Models\Product;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use App\Models\Bookable;
+use App\Models\Customer;
+use App\Enums\OrderStatus;
+use App\Models\Contractor;
+use Illuminate\Http\Request;
+use App\Models\OrderBookable;
+use App\Models\ContractorRole;
+use App\Enums\OrderBookableStatus;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use App\Traits\CacheInvalidationTrait;
 
@@ -239,5 +240,16 @@ class OrderController extends Controller
             ->count();
 
         return $conflictingBookings === 0;
+    }
+
+    public function destroy(Order $order)
+    {
+        Log::info('Deleting order: ' . $order->id);
+        $order->delete();
+
+        // Clear order cache (status has changed)
+        $this->invalidateOrdersCache();
+
+        return back()->with('success', 'Order deleted successfully');
     }
 }

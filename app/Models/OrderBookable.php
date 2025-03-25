@@ -18,6 +18,11 @@ class OrderBookable extends Model
         'end_time'
     ];
 
+    protected $casts = [
+        'start_time' => 'datetime',
+        'end_time'   => 'datetime',
+    ];
+
     /**
      * Get the associated Order.
      */

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Room;
 use Inertia\Inertia;
 use App\Models\Product;
 use App\Models\Bookable;
@@ -13,10 +14,10 @@ use App\Models\ContractorRole;
 use Illuminate\Support\Carbon;
 use App\Models\ProductCategory;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\BookableAvailability;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use App\Traits\CacheInvalidationTrait;
 
 class BookableController extends Controller
@@ -355,16 +356,15 @@ class BookableController extends Controller
                 'start_time' => $slot->start_time,
                 'end_time' => $slot->end_time,
             ]);
-
+        $room = Room::where('bookable_id', $room->id)->first();
         // Fetch existing booked slots using the relationship
-        $bookedSlots = $room->orders()
+        $bookedSlots = OrderBookable::where('bookable_id', $room->id)->where('bookable_type', Room::class)
             ->whereDate('start_time', $date)
             ->get()
             ->map(fn($order) => [
                 'start_time' => $order->start_time,
                 'end_time' => $order->end_time,
             ]);
-
         Log::info($bookedSlots);
         // Break available slots into 30-minute intervals
         $availableSlots = collect();

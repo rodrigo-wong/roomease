@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
@@ -25,6 +26,11 @@ class Order extends Model
         return $this->hasMany(OrderBookable::class);
     }
 
+    public function payment(): HasOne
+    {
+        return $this->hasOne(Payment::class);
+    }
+
     /**
      * The customer who created this order.
      */
@@ -38,5 +44,10 @@ class Order extends Model
         return $this->orderBookables()->get()->every(function ($orderBookable) {
             return $orderBookable->status === OrderBookableStatus::CONFIRMED->value;
         });
+    }
+
+    public function details()
+    {
+        return $this->orderBookables()->with('bookable')->get();
     }
 }
