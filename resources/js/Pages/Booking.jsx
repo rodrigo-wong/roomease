@@ -43,7 +43,6 @@ const Booking = ({ rooms }) => {
     const [clientSecret, setClientSecret] = useState(null);
     const [timeLeft, setTimeLeft] = useState(null);
     const { errors } = usePage().props;
-    console.log(rooms)
     // Memoize stripePromise so it does not change on re-renders.
     const stripePromise = useMemo(
         () => loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY),
@@ -783,7 +782,7 @@ const Booking = ({ rooms }) => {
                         {/* Render PaymentForm once clientSecret is available */}
                         {clientSecret ? (
                             <Elements stripe={stripePromise}>
-                                <PaymentForm clientSecret={clientSecret} />
+                                <PaymentForm clientSecret={clientSecret} contractors={selectedContractors} order={reservedOrder} />
                             </Elements>
                         ) : (
                             <p>Loading payment details...</p>
