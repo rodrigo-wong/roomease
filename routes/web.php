@@ -15,6 +15,7 @@ use App\Http\Controllers\BookableController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\ContractorRoleController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductCategoryController;
 
 Route::get('/', function () {
@@ -39,6 +40,8 @@ Route::get('/test', function () {
 });
 Route::get('/time-slots/{room}', [BookableController::class, 'getAvailableTimes'])->name('bookable.time-slots');
 Route::get('/available/bookables', [BookableController::class, 'getAvailableBookables'])->name('bookable.available');
+
+Route::post('/payment/{order}', [PaymentController::class, 'store'])->name('payment.store');
 
 
 Route::get('/dashboard', [OrderController::class, 'orders'])
