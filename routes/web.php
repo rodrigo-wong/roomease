@@ -61,6 +61,7 @@ Route::get('/contractor/confirmation', [ContractorController::class, 'confirm'])
     ->name('contractor.confirmation')
     ->middleware('signed');
 
+
 Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
 Route::post('/order/{order}', [OrderController::class, 'destroy'])->name('order.destroy');
 
