@@ -1,4 +1,3 @@
-// Booking.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -66,7 +65,6 @@ const Booking = ({ rooms }) => {
                     params: { date: selectedDate, hours: hours },
                 })
                 .then((response) => {
-                    console.log(response.data);
                     setAvailableTimeslots(response.data.available_slots);
                 })
                 .catch((error) => {
@@ -444,6 +442,7 @@ const Booking = ({ rooms }) => {
                                 handleDateChange(date);
                             }}
                             value={value}
+                            minDate={new Date()}
                         />
                     </div>
                 )}
