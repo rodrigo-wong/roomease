@@ -252,4 +252,11 @@ class OrderController extends Controller
 
         return back()->with('success', 'Order deleted successfully');
     }
+
+    public function confirmed(Order $order)
+    {
+        return Inertia::render('Orders/Confirmed', [
+            'details' => $order->details(),
+        ]);
+    }
 }
