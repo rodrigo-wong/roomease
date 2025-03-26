@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OrderStatus;
 use App\Enums\OrderBookableStatus;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
-    protected $fillable = ['customer_id', 'total_amount', 'status', 'notes'];
+    protected $fillable = ['customer_id', 'total_amount', 'status', 'notes', 'hours', 'start_time'];
 
     protected $casts = [
         'status' => OrderStatus::class,
@@ -48,6 +49,19 @@ class Order extends Model
 
     public function details()
     {
-        return $this->orderBookables()->with('bookable')->get();
+        $details = $this->load('orderBookables.bookable');
+        $details = collect($details->orderBookables)->map(function($bookable){
+            return [
+                'name' => $bookable->bookable->name,
+                'description' => $bookable->bookable->description,
+                'rate' => $bookable->bookable->rate?? Bookable::find($bookable->bookable->bookable_id)->rate,
+                'quantity' => $bookable->quantity,
+            ];
+        });
+
+        return collect([
+            'order'=> $this,
+            'items' => $details
+        ]);
     }
 }
