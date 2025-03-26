@@ -23,15 +23,11 @@ class PaymentController extends Controller
         ]);
 
         $payment = $order->payment;
-        if($payment->stripe_payment_intent_id !== $validated['payment_intent']) {
+        if ($payment->stripe_payment_intent_id !== $validated['payment_intent']) {
             return redirect()->back()->withErrors('error', 'Payment intent does not match');
         }
         $payment->status = PaymentStatus::SUCCEEDED->value;
         $payment->save();
-
-        $order->update([
-            'status' => OrderStatus::COMPLETED->value,
-        ]);
 
         $customer = $order->customer;
 
@@ -56,11 +52,10 @@ class PaymentController extends Controller
                 Mail::to($email)->send(new ContractorConfirmation($order, $contractorType['role'], $email));
             }
         }
-        
 
-        dd('Order confirmed and payment succeeded');
-        return Inertia::render('Orders/Confirmed', [
-            'order' => $order->load('details'),
+        $order->update([
+            'status' => isset($validated['contractors']) ? OrderStatus::PENDING->value : OrderStatus::COMPLETED->value,
         ]);
+        return redirect()->route('order.confirmed', ['order' => $order->id]);
     }
 }
