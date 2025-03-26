@@ -155,6 +155,22 @@ export default function Dashboard({ orders, contractors, contractorRoles, rooms,
         const searchDebounce = useRef(null);
 
 
+ const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+};
+
+const formatTime = (date) => {
+    return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'UTC'
+    });
+};
 
 const getBookingTimeDisplay = (order) => {
     if (!order.order_bookables || order.order_bookables.length === 0) {
@@ -163,40 +179,14 @@ const getBookingTimeDisplay = (order) => {
     const bookable = order.order_bookables[0];
     const startTime = new Date(bookable.start_time);
     const endTime = new Date(bookable.end_time);
-    const formatDate = (date) => {
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
-    const formatTime = (date) => {
-        return date.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-    };
+    
     return `${formatDate(startTime)}, ${formatTime(startTime)} - ${formatTime(endTime)}`;
 };
 
 const formatBookableTime = (startTime, endTime) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
-    const formatDate = (date) => {
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
-    const formatTime = (date) => {
-        return date.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-    };
+    
     if (start.toDateString() === end.toDateString()) {
         return `${formatDate(start)}, ${formatTime(start)} - ${formatTime(end)}`;
     } else {

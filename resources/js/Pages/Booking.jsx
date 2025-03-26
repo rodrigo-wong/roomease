@@ -120,7 +120,6 @@ const Booking = ({ rooms }) => {
                     return null;
                 })
                 .filter((item) => item !== null);
-            console.log(updatedContractors);
             setSelectedContractors(updatedContractors);
         }
     }, [selectedCounts, availableAddons.contractor]);
