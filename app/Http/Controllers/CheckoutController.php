@@ -42,10 +42,10 @@ class CheckoutController extends Controller
                 'timeslots'    => 'required|array',
                 'addons'       => 'nullable|array',
                 'total_amount' => 'required|numeric',
-                'hours'        => 'required|integer|min:1',
+                'hours'        => 'required|integer|min:2',
                 'order'        => 'nullable|integer'
             ]);
-
+            dd($validated);
             // If an order ID is provided, delete the existing order.
             if (isset($validated['order']) && $validated['order']) {
                 Log::info('Order found: ' . $validated['order']);
@@ -101,7 +101,8 @@ class CheckoutController extends Controller
                             throw new \Exception("The product addon with ID {$addon['id']} is already booked for the chosen time slot.");
                         }
                     } elseif ($addon['bookable_type'] === 'contractor') {
-                        $addonConflict = OrderBookable::where('bookable_id', $addon['role'])
+                        // Get the count of overlapping contractor bookings.
+                        $existingBookingCount = OrderBookable::where('bookable_id', $addon['role'])
                             ->where('bookable_type', ContractorRole::class)
                             ->where(function ($query) use ($startTime, $endTime) {
                                 $query->whereBetween('start_time', [$startTime, $endTime])
@@ -110,10 +111,18 @@ class CheckoutController extends Controller
                                         $query->where('start_time', '<=', $startTime)
                                             ->where('end_time', '>=', $endTime);
                                     });
-                            })->exists();
+                            })->count();
 
-                        if ($addonConflict) {
-                            throw new \Exception("The contractor addon with role ID {$addon['role']} is already booked for the chosen time slot.");
+                        // Determine the requested quantity (default to 1 if not specified).
+                        $requestedQuantity = isset($addon['quantity']) ? $addon['quantity'] : 1;
+
+                        // Retrieve the contractor role record to check available quantity.
+                        $contractorRole = ContractorRole::findOrFail($addon['role']);
+                        $availableQuantity = $contractorRole->quantity;
+
+                        // If adding the requested quantity exceeds available quantity, throw an exception.
+                        if ($existingBookingCount + $requestedQuantity > $availableQuantity) {
+                            throw new \Exception("The contractor addon with role ID {$addon['role']} does not have enough available quantity for the chosen time slot.");
                         }
                     }
                 }
@@ -137,6 +146,8 @@ class CheckoutController extends Controller
                 'customer_id'  => $customer->id,
                 'total_amount' => $validated['total_amount'],
                 'status'       => OrderStatus::PROCESSING,
+                'hours'        => $validated['hours'],
+                'start_time'   => $startTime,
             ]);
 
             // Create the room booking.
@@ -197,7 +208,7 @@ class CheckoutController extends Controller
                 'stripe_payment_intent_id' => $paymentIntent->id,
                 'amount'                   => $validated['total_amount'],
                 'currency'                 => 'usd',
-                'status'                   => 'pending', // Assuming this is an enum handled elsewhere
+                'status'                   => 'pending',
             ]);
 
             // Commit the transaction.
@@ -214,6 +225,7 @@ class CheckoutController extends Controller
             return response()->json(['error' => 'Failed to create booking: ' . $e->getMessage()], 500);
         }
     }
+
 
 
     /**
