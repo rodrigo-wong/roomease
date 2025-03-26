@@ -54,7 +54,7 @@ class OrderController extends Controller
 
             // Apply time filter
             if ($timeFilter !== 'all') {
-                $now = now()->timezone('America/New_York');
+                $now = now()->timezone('UTC');
                 if ($timeFilter === 'future') {
                     $query->whereHas('orderBookables', function ($q) use ($now) {
                         $q->where('start_time', '>=', $now);
