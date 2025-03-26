@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import GuestLayout from "@/Layouts/GuestLayout";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
@@ -307,11 +307,9 @@ const Booking = ({ rooms }) => {
             hours: hours,
             order: reservedOrder,
         };
-        console.log(bookingData);
         axios
             .post(route("checkout"), bookingData)
             .then((response) => {
-                console.log(response.data);
                 // Set the client secret and reserved order returned from your API
                 setClientSecret(response.data.client_secret);
                 setReservedOrder(response.data.order);

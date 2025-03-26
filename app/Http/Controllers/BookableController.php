@@ -469,6 +469,7 @@ class BookableController extends Controller
         // Here we extract role_id and role_name separately.
         if ($groupedBookables->has('contractor')) {
             $contractors = collect($groupedBookables['contractor'])->map(function ($contractor) {
+                Log::info($contractor);
                 return [
                     'id' => $contractor->id,
                     'role_id' => $contractor->contractor->role->id,

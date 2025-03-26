@@ -14,66 +14,73 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Traits\CacheInvalidationTrait;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Session;
 
 class ContractorController extends Controller
 {
     use CacheInvalidationTrait;
+
     public function confirm(Request $request)
     {
-        Log::info($request->all());
         $validated = $request->validate([
             'order_id' => 'required|exists:orders,id',
             'contractor_id' => 'required|exists:contractors,id',
             'role_id' => 'required|exists:contractor_roles,id'
         ]);
-
-        /**
-         * @var Order $order
-         */
+    
         $order = Order::findOrFail($request->order_id);
-        /*
-        * @var OrderBookable $orderBookableToBeFilled
-        */
-        $orderBookableToBeFilled = $order->orderBookables()->where('status', OrderStatus::PENDING)->where('bookable_type', ContractorRole::class)->where('bookable_id', $validated['role_id'])->first();;
+        $contractor = Contractor::find($validated['contractor_id']);
+        
+        // Unique session key to track if this contractor already accepted this job
+        $sessionKey = 'job_accepted_' . $validated['order_id'] . '_' . $validated['contractor_id'];
+    
+        // ✅ If they already accepted it earlier in this session, show success again
+        if (Session::has($sessionKey)) {
+            return Inertia::render('Landing/ContractorsLandingPage', [
+                'status' => 1,
+                'message' => 'You have successfully booked this job',
+                'person' => $contractor,
+            ]);
+        }
+    
+        // Check if the job is still available
+        $orderBookableToBeFilled = $order->orderBookables()
+            ->where('status', OrderStatus::PENDING)
+            ->where('bookable_type', ContractorRole::class)
+            ->where('bookable_id', $validated['role_id'])
+            ->first();
+    
         if (!$orderBookableToBeFilled) {
-            // TODO: Inertia returned a React file for confirm landing page
-            // pass in message as ERROR, already taken and other property
+            // ❌ Job already taken (but not by this contractor in this session)
             return Inertia::render('Landing/ContractorsLandingPage', [
                 'status' => -1,
                 'message' => 'Someone already took this job',
-                'person' => Contractor::find($validated['contractor_id']),
+                'person' => $contractor,
             ]);
-            dd("Job already taken");
-        } else {
-            $orderBookableToBeFilled->status = OrderBookableStatus::CONFIRMED;
-            $orderBookableToBeFilled->bookable_id = $validated['contractor_id'];
-            $orderBookableToBeFilled->bookable_type = Contractor::class;
-            $orderBookableToBeFilled->save();
         }
-
-        // dd($order->isCompleted());
+    
+        // Book the job
+        $orderBookableToBeFilled->status = OrderBookableStatus::CONFIRMED;
+        $orderBookableToBeFilled->bookable_id = $validated['contractor_id'];
+        $orderBookableToBeFilled->bookable_type = Contractor::class;
+        $orderBookableToBeFilled->save();
+    
         if ($order->isCompleted()) {
             $order->status = OrderStatus::COMPLETED;
+            $order->save();
         }
-        $order->save();
-
-        // Invalidate caches that are affected by this contractor assignment
+    
         $this->invalidateOrdersCache();
-        Cache::forget('contractors'); // Contractor availability has changed
-
-
-        // TODO: Inertia returned a React file for confirm landing page
-        // pass in message as SUCCESS, contractor confirmed and other property
+        Cache::forget('contractors');
+    
+        // Mark in session that this contractor got this job
+        Session::put($sessionKey, true);
+    
         return Inertia::render('Landing/ContractorsLandingPage', [
             'status' => 1,
             'message' => 'You have successfully booked this job',
-            'person' => Contractor::find($validated['contractor_id']),
+            'person' => $contractor,
         ]);
-        dd("Contractor confirmed");
-
-        return redirect()->back();
-
-        // mail pit - install
-        //
     }
+
 }
