@@ -24,8 +24,11 @@ Route::get('/', function () {
     ]);
 })->name('client.home');
 
-Route::get('/time-slots/{room}', [BookableController::class, 'getAvailableTimes'])->name('bookable.time-slots');
-Route::get('/available/bookables', [BookableController::class, 'getAvailableBookables'])->name('bookable.available');
+Route::get('/time-slots-multi', [BookableController::class, 'getAvailableTimesMultiRoom'])->name('bookable.time-slots-multi');
+Route::get('/available-multi/bookables', [BookableController::class, 'getAvailableBookablesAddons'])->name('bookable.available-addons');
+Route::put('/bookables/{bookable}/room-group', [BookableController::class, 'updateRoomGroup'])->middleware(['auth'])
+    ->name('bookables.updateRoomGroup');
+Route::get('/admin/bookables/available-rooms', [BookableController::class, 'getAvailableRoomsForGroup'])->middleware(['auth'])->name('bookables.available-rooms');
 
 Route::post('/payment/{order}', [PaymentController::class, 'store'])->name('payment.store');
 Route::get('/order/{order}/confirmed', [OrderController::class, 'confirmed'])->name('order.confirmed');

@@ -7,6 +7,7 @@ enum BookableType: string
     case CONTRACTOR = 'contractor';
     case ROOM = 'room';
     case PRODUCT = 'product';
+    case ROOM_GROUP = 'room_group';
 
     public static function values(): array
     {

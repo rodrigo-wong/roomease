@@ -11,11 +11,87 @@ class Bookable extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['rate', 'bookable_type'];
+    protected $fillable = ['rate', 'bookable_type', 'is_room_group', 'room_ids'];
 
     protected $casts = [
         'bookable_type' => BookableType::class, // Casts bookable_type as Enum
+        'room_ids' => 'array',
+        'is_room_group' => 'boolean',
     ];
+
+    protected $appends = ['display_name', 'display_description', 'display_capacity'];
+
+
+
+    /**
+     * Get the display name for this bookable
+     */
+    public function getDisplayNameAttribute()
+    {
+        if (!$this->is_room_group) {
+            return $this->room ? $this->room->name : null;
+        }
+
+        // For room groups, create a name based on included rooms
+        $roomNames = Bookable::whereIn('id', $this->room_ids ?? [])
+            ->with('room')
+            ->get()
+            ->pluck('room.name')
+            ->filter()
+            ->toArray();
+
+        return implode(', ', $roomNames);
+    }
+
+    /**
+     * Get the description for display
+     */
+    public function getDisplayDescriptionAttribute()
+    {
+        if (!$this->is_room_group) {
+            return $this->room ? $this->room->description : null;
+        }
+
+        // For room groups, create a description that lists the included rooms
+        $roomNames = Bookable::whereIn('id', $this->room_ids ?? [])
+            ->with('room')
+            ->get()
+            ->pluck('room.name')
+            ->filter()
+            ->toArray();
+
+        return 'Includes: ' . implode(', ', $roomNames);
+    }
+
+    /**
+     * Get the combined capacity
+     */
+    public function getDisplayCapacityAttribute()
+    {
+        if (!$this->is_room_group) {
+            return $this->room ? $this->room->capacity : null;
+        }
+
+        // For room groups, sum up the capacities
+        return Bookable::whereIn('id', $this->room_ids ?? [])
+            ->with('room')
+            ->get()
+            ->sum(function ($bookable) {
+                return $bookable->room ? $bookable->room->capacity : 0;
+            });
+    }
+
+    /**
+     * Get the individual rooms that are part of this room group
+     */
+    public function groupRooms()
+    {
+        if (!$this->is_room_group) {
+            return collect([]);
+        }
+
+        return Bookable::whereIn('id', $this->room_ids ?? [])->get();
+    }
 
     /**
      * Get the contractor associated with the bookable.
@@ -88,6 +164,24 @@ class Bookable extends Model
     }
 
     /**
+     * Get the room groups
+     */
+    public function scopeRoomGroups($query)
+    {
+        return $query->where('is_room_group', true);
+    }
+
+    /**
+     * Get the individual rooms (not groups)
+     */
+    public function scopeIndividualRooms($query)
+    {
+        return $query->where('bookable_type', BookableType::ROOM)
+            ->where('is_room_group', false)
+            ->with('room');
+    }
+
+    /**
      * Delete related records when deleting a bookable
      */
     protected static function boot()
@@ -101,7 +195,7 @@ class Bookable extends Model
             // Delete related records based on type
             if ($bookable->bookable_type === BookableType::PRODUCT) {
                 $bookable->product()->delete();
-            } elseif ($bookable->bookable_type === BookableType::ROOM) {
+            } elseif ($bookable->bookable_type === BookableType::ROOM && !$bookable->is_room_group) {
                 $bookable->room()->delete();
             } elseif ($bookable->bookable_type === BookableType::CONTRACTOR) {
                 $bookable->contractor()->delete();

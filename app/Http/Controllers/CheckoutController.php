@@ -23,6 +23,7 @@ use App\Mail\ContractorConfirmation;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Session;
 use Stripe\Checkout\Session as StripeSession;
+use App\Models\Bookable;
 
 class CheckoutController extends Controller
 {
@@ -37,7 +38,8 @@ class CheckoutController extends Controller
                 'last_name'    => 'required|string|max:255',
                 'email'        => 'required|email',
                 'phone_number' => 'required|string',
-                'room_id'      => 'required|exists:bookables,id',
+                'room_ids'     => 'required|array',
+                'room_ids.*'   => 'exists:bookables,id',
                 'date'         => 'required|date',
                 'timeslots'    => 'required|array',
                 'addons'       => 'nullable|array',
@@ -62,21 +64,54 @@ class CheckoutController extends Controller
             // ---------------------
             // Conflict Check: Room
             // ---------------------
-            $room = Room::where('bookable_id', $validated['room_id'])->firstOrFail();
 
-            $roomConflict = OrderBookable::where('bookable_id', $room->id)
-                ->where('bookable_type', Room::class)
-                ->where(function ($query) use ($startTime, $endTime) {
-                    $query->whereBetween('start_time', [$startTime, $endTime])
-                        ->orWhereBetween('end_time', [$startTime, $endTime])
-                        ->orWhere(function ($query) use ($startTime, $endTime) {
-                            $query->where('start_time', '<=', $startTime)
-                                ->where('end_time', '>=', $endTime);
-                        });
-                })->exists();
 
-            if ($roomConflict) {
-                throw new \Exception("The selected room is already booked for the chosen time slot.");
+            // Check if all requested rooms are available for the chosen time.
+            foreach ($validated['room_ids'] as $roomId) {
+                $bookable = Bookable::findOrFail($roomId);
+
+                // Handle room groups by expanding them to individual rooms
+                if ($bookable->is_room_group && $bookable->room_ids) {
+                    // For room groups, check each individual room in the group
+                    foreach ($bookable->room_ids as $individualRoomId) {
+                        $roomModel = Room::where('bookable_id', $individualRoomId)->firstOrFail();
+
+                        // Check if any room in the group is already booked
+                        $roomBooked = OrderBookable::where('bookable_id', $roomModel->id)
+                            ->where('bookable_type', Room::class)
+                            ->where(function ($query) use ($startTime, $endTime) {
+                                $query->whereBetween('start_time', [$startTime, $endTime])
+                                    ->orWhereBetween('end_time', [$startTime, $endTime])
+                                    ->orWhere(function ($query) use ($startTime, $endTime) {
+                                        $query->where('start_time', '<=', $startTime)
+                                            ->where('end_time', '>=', $endTime);
+                                    });
+                            })->exists();
+
+                        if ($roomBooked) {
+                            throw new \Exception("The room with ID {$individualRoomId} in group {$roomId} is already booked for the chosen time slot.");
+                        }
+                    }
+                } else {
+                    // Handle individual rooms as before
+                    $roomModel = Room::where('bookable_id', $roomId)->firstOrFail();
+
+                    // Check if the room is already booked for the chosen time.
+                    $roomBooked = OrderBookable::where('bookable_id', $roomModel->id)
+                        ->where('bookable_type', Room::class)
+                        ->where(function ($query) use ($startTime, $endTime) {
+                            $query->whereBetween('start_time', [$startTime, $endTime])
+                                ->orWhereBetween('end_time', [$startTime, $endTime])
+                                ->orWhere(function ($query) use ($startTime, $endTime) {
+                                    $query->where('start_time', '<=', $startTime)
+                                        ->where('end_time', '>=', $endTime);
+                                });
+                        })->exists();
+
+                    if ($roomBooked) {
+                        throw new \Exception("The room with ID {$roomId} is already booked for the chosen time slot.");
+                    }
+                }
             }
 
             // ----------------------
@@ -150,16 +185,42 @@ class CheckoutController extends Controller
                 'start_time'   => $startTime,
             ]);
 
-            // Create the room booking.
-            OrderBookable::create([
-                'order_id'      => $order->id,
-                'bookable_id'   => $room->id,
-                'bookable_type' => Room::class,
-                'quantity'      => 1,
-                'status'        => OrderBookableStatus::CONFIRMED,
-                'start_time'    => $startTime,
-                'end_time'      => $endTime,
-            ]);
+            // Create order bookables for each room
+            foreach ($validated['room_ids'] as $roomId) {
+                $bookable = Bookable::findOrFail($roomId);
+
+                // Handle room groups differently than individual rooms for booking creation
+                if ($bookable->is_room_group && $bookable->room_ids) {
+                    // For room groups, create a booking for each individual room in the group
+                    foreach ($bookable->room_ids as $individualRoomId) {
+                        $roomBookable = Bookable::findOrFail($individualRoomId);
+                        $roomModel = Room::where('bookable_id', $individualRoomId)->firstOrFail();
+
+                        OrderBookable::create([
+                            'order_id'      => $order->id,
+                            'bookable_id'   => $roomModel->id,
+                            'bookable_type' => Room::class,
+                            'quantity'      => 1,
+                            'status'        => OrderBookableStatus::CONFIRMED,
+                            'start_time'    => $startTime,
+                            'end_time'      => $endTime,
+                        ]);
+                    }
+                } else {
+                    // Handle individual rooms as before
+                    $roomModel = Room::where('bookable_id', $roomId)->firstOrFail();
+
+                    OrderBookable::create([
+                        'order_id'      => $order->id,
+                        'bookable_id'   => $roomModel->id,
+                        'bookable_type' => Room::class,
+                        'quantity'      => 1,
+                        'status'        => OrderBookableStatus::CONFIRMED,
+                        'start_time'    => $startTime,
+                        'end_time'      => $endTime,
+                    ]);
+                }
+            }
 
             // Process add-on bookings, if provided.
             if (!empty($validated['addons'])) {

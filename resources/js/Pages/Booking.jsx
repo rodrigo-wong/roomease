@@ -21,7 +21,7 @@ const Booking = ({ rooms }) => {
     // Booking flow states
     const [value, onChange] = useState(new Date());
     const [step, setStep] = useState(1);
-    const [selectedRoom, setSelectedRoom] = useState(null);
+    const [selectedRooms, setSelectedRooms] = useState([]);
     const [selectedDate, setSelectedDate] = useState("");
     const [availableTimeslots, setAvailableTimeslots] = useState([]);
     const [selectedTimeslots, setSelectedTimeslots] = useState([]);
@@ -42,6 +42,7 @@ const Booking = ({ rooms }) => {
     const [clientSecret, setClientSecret] = useState(null);
     const [timeLeft, setTimeLeft] = useState(null);
     const { errors } = usePage().props;
+
     // Memoize stripePromise so it does not change on re-renders.
     const stripePromise = useMemo(
         () => loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY),
@@ -56,13 +57,103 @@ const Booking = ({ rooms }) => {
         }
     }, [errors]);
 
+    /**
+     * Handles the selection and deselection of rooms or room groups and updates the selectedRooms state.
+     * If a room group is selected, all individual rooms within that group are deselected.
+     * If an individual room is selected, any room groups that include that room are deselected.
+     * @param {*} bookable - The bookable item (room or room group) to be selected or deselected.
+     */
+    const handleRoomSelection = (bookable) => {
+        // Check if room is already selected
+        const isSelected = selectedRooms.some(
+            (roomOrRoomGroup) => roomOrRoomGroup.id === bookable.id
+        );
+        if (isSelected) {
+            setSelectedRooms(
+                selectedRooms.filter(
+                    (roomOrRoomGroup) => roomOrRoomGroup.id !== bookable.id
+                )
+            );
+        } else {
+            let updatedSelection = [...selectedRooms];
+            if (bookable.is_room_group && bookable.room_ids) {
+                updatedSelection = updatedSelection.filter(
+                    (room) =>
+                        !bookable.room_ids.includes(room.id) ||
+                        room.is_room_group
+                );
+            } else {
+                updatedSelection = updatedSelection.filter(
+                    (room) =>
+                        !room.is_room_group ||
+                        !room.room_ids ||
+                        !room.room_ids.includes(bookable.id)
+                );
+            }
+            updatedSelection.push(bookable);
+            setSelectedRooms(updatedSelection);
+        }
+    };
+
+    /**
+     *  Helper function to check if a room or room group is disabled based on the selected rooms.
+     * If a room group is selected, all individual rooms within that group are disabled.
+     * @param {*} bookable  - The bookable item (room or room group) to check.
+     * @returns
+     */
+    const isRoomDisabled = (bookable) => {
+        if (!bookable.is_room_group) {
+            return selectedRooms.some(
+                (room) =>
+                    room.is_room_group &&
+                    room.room_ids &&
+                    room.room_ids.includes(bookable.id)
+            );
+        }
+        return bookable.room_ids?.some((roomId) =>
+            selectedRooms.some(
+                (room) => !room.is_room_group && room.id === roomId
+            )
+        );
+    };
+
+    /**
+     * The count is the total number of rooms (bookable room types) selected, and details is a string listing the names of the selected rooms.
+     * @returns {Object} - An object containing the count and details of selected rooms.
+     *
+     */
+    const getSelectedRoomsInfo = () => {
+        let roomCount = 0;
+        let roomDetails = [];
+
+        selectedRooms.forEach((room) => {
+            if (room.is_room_group) {
+                roomCount += room.room_ids?.length || 0;
+                roomDetails.push(`${room.display_name}`);
+            } else {
+                roomCount += 1;
+                roomDetails.push(room.room?.name);
+            }
+        });
+
+        return {
+            count: roomCount,
+            details: roomDetails.join(", "),
+        };
+    };
+
     // Fetch available time slots when room, date, or hours change
     useEffect(() => {
-        if (selectedRoom && selectedDate && hours) {
+        if (selectedRooms.length > 0 && selectedDate && hours) {
             setLoadingTimeslots(true);
+            const bookableIds = selectedRooms.map((bookable) => bookable.id);
             axios
-                .get(route("bookable.time-slots", { room: selectedRoom.id }), {
-                    params: { date: selectedDate, hours: hours },
+                .get(route("bookable.time-slots-multi"), {
+                    params: {
+                        rooms: bookableIds,
+                        date: selectedDate,
+                        hours: hours,
+                    },
                 })
                 .then((response) => {
                     setAvailableTimeslots(response.data.available_slots);
@@ -76,14 +167,20 @@ const Booking = ({ rooms }) => {
         } else {
             setAvailableTimeslots([]);
         }
-    }, [selectedRoom, selectedDate, hours]);
+    }, [selectedRooms, selectedDate, hours]);
 
     // Fetch available add-ons when a timeslot is selected
     useEffect(() => {
-        if (selectedRoom && selectedDate && selectedTimeslots.length) {
+        if (
+            selectedRooms.length > 0 &&
+            selectedDate &&
+            selectedTimeslots.length
+        ) {
+            const bookableIds = selectedRooms.map((room) => room.id);
             axios
-                .get(route("bookable.available"), {
+                .get(route("bookable.available-addons"), {
                     params: {
+                        rooms: bookableIds,
                         date: selectedDate,
                         timeslot: {
                             start_time: selectedTimeslots[0],
@@ -92,14 +189,13 @@ const Booking = ({ rooms }) => {
                     },
                 })
                 .then((response) => {
-                    console.log(response.data.available_bookables);
                     setAvailableAddons(response.data.available_bookables);
                 })
                 .catch((error) => {
                     console.error("Error fetching available add-ons:", error);
                 });
         }
-    }, [selectedRoom, selectedDate, selectedTimeslots]);
+    }, [selectedRooms, selectedDate, selectedTimeslots]);
 
     // Update selectedContractors from available add-ons and counts
     useEffect(() => {
@@ -170,8 +266,8 @@ const Booking = ({ rooms }) => {
     const nextStep = () => {
         // Validate current step
         if (step === 1) {
-            if (!selectedRoom) {
-                toast.error("Please select a room.");
+            if (selectedRooms.length === 0) {
+                toast.error("Please select at least one room.");
                 return;
             }
             if (!hours || hours < 2) {
@@ -209,32 +305,29 @@ const Booking = ({ rooms }) => {
     };
 
     // Handlers for product add-ons
-    const handleIncrementProduct = (productAddon) => {
+    const handleSelectProduct = (productAddon) => {
         const id = productAddon.id;
-        setSelectedCounts((prev) => {
-            const current = prev[id] || 0;
-            if (current < 1) {
-                return { ...prev, [id]: current + 1 };
-            }
-            return prev;
-        });
+        setSelectedCounts((prev) => ({ ...prev, [id]: 1 }));
+
         setSelectedProducts((prev) => {
             if (!prev.some((p) => p.id === productAddon.id)) {
-                return [...prev, { ...productAddon, quantity: 1 }];
+                return [
+                    ...prev,
+                    {
+                        ...productAddon,
+                        bookable_type: "product",
+                        quantity: 1,
+                    },
+                ];
             }
             return prev;
         });
     };
 
-    const handleDecrementProduct = (productAddon) => {
+    const handleDeselectProduct = (productAddon) => {
         const id = productAddon.id;
-        setSelectedCounts((prev) => {
-            const current = prev[id] || 0;
-            if (current > 0) {
-                return { ...prev, [id]: current - 1 };
-            }
-            return prev;
-        });
+        setSelectedCounts((prev) => ({ ...prev, [id]: 0 }));
+
         setSelectedProducts((prev) =>
             prev.filter((p) => p.id !== productAddon.id)
         );
@@ -250,7 +343,6 @@ const Booking = ({ rooms }) => {
             return prev;
         });
     };
-
     const handleDecrement = (roleId) => {
         setSelectedCounts((prev) => {
             const current = prev[roleId] || 0;
@@ -261,7 +353,12 @@ const Booking = ({ rooms }) => {
         });
     };
 
-    // Handle date change from calendar
+    /**
+     * This function handles the date change event from the calendar.
+     * It formats the selected date to "YYYY-MM-DD" and updates the selectedDate state.
+     * @param {Date} date - The date selected by the user.
+     * @returns
+     */
     const handleDateChange = (date) => {
         if (!date) return;
         const yyyy = date.getFullYear();
@@ -271,7 +368,10 @@ const Booking = ({ rooms }) => {
     };
 
     // Calculate totals
-    const roomSubtotal = selectedRoom ? selectedRoom.rate * hours : 0;
+    const roomsSubtotal = selectedRooms.reduce(
+        (sum, room) => sum + room.rate * hours,
+        0
+    );
     const productsSubtotal = selectedProducts.reduce(
         (sum, addon) => sum + addon.rate * hours * (addon.quantity ?? 1),
         0
@@ -280,10 +380,10 @@ const Booking = ({ rooms }) => {
         (sum, addon) => sum + addon.rate * addon.quantity * hours,
         0
     );
-    const totalAmount = roomSubtotal + productsSubtotal + contractorsSubtotal;
+    const totalAmount = roomsSubtotal + productsSubtotal + contractorsSubtotal;
 
     const bookingItems = [
-        selectedRoom,
+        ...selectedRooms,
         ...selectedProducts,
         ...selectedContractors,
     ];
@@ -293,12 +393,14 @@ const Booking = ({ rooms }) => {
     const handleSubmit = () => {
         setIsSubmitting(true);
         const addons = [...selectedProducts, ...selectedContractors];
+        const roomIds = selectedRooms.map((room) => room.id);
+
         const bookingData = {
             first_name: firstName,
             last_name: lastName,
             email: email,
             phone_number: phoneNumber,
-            room_id: selectedRoom.id,
+            room_ids: roomIds,
             date: selectedDate,
             timeslots: selectedTimeslots,
             addons,
@@ -306,6 +408,7 @@ const Booking = ({ rooms }) => {
             hours: hours,
             order: reservedOrder,
         };
+
         axios
             .post(route("checkout"), bookingData)
             .then((response) => {
@@ -344,7 +447,7 @@ const Booking = ({ rooms }) => {
                 {/* Stepper UI */}
                 <div className="flex items-center justify-center mb-6 relative">
                     {[
-                        "Room",
+                        "Rooms",
                         "Date",
                         "Time Slots",
                         "Add-ons",
@@ -384,36 +487,88 @@ const Booking = ({ rooms }) => {
                 {step === 1 && (
                     <div>
                         <h2 className="text-lg font-semibold mb-4">
-                            Select a Room
+                            Select Rooms
                         </h2>
                         <div className="grid grid-cols-2 gap-4">
-                            {rooms?.map(
-                                (bookable) =>
-                                    bookable?.room && (
-                                        <button
-                                            key={bookable.id}
-                                            onClick={() =>
-                                                setSelectedRoom(bookable)
-                                            }
-                                            className={`p-3 border rounded ${
-                                                selectedRoom?.id === bookable.id
-                                                    ? "border-blue-500 bg-blue-100"
-                                                    : "border-gray-300"
-                                            }`}
-                                        >
-                                            <h3 className="font-semibold">
-                                                {bookable.room.name}
-                                            </h3>
-                                            <p className="text-sm text-gray-600">
-                                                {bookable.room.description}
+                            {rooms?.map((bookable) => {
+                                // Check if this room should be disabled
+                                const isDisabled = isRoomDisabled(bookable);
+                                return (
+                                    <button
+                                        key={bookable.id}
+                                        onClick={() =>
+                                            handleRoomSelection(bookable)
+                                        }
+                                        className={`p-3 border rounded ${
+                                            selectedRooms.some(
+                                                (room) =>
+                                                    room.id === bookable.id
+                                            )
+                                                ? "border-blue-500 bg-blue-100"
+                                                : isDisabled
+                                                ? "border-gray-300 bg-gray-100 opacity-50"
+                                                : "border-gray-300"
+                                        }`}
+                                        disabled={isDisabled}
+                                    >
+                                        {/* Display the room group label if it's a room group */}
+                                        {bookable.is_room_group && (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-1">
+                                                Room Group
+                                            </span>
+                                        )}
+
+                                        <h3 className="font-semibold">
+                                            {bookable.is_room_group
+                                                ? bookable.display_name
+                                                : bookable.room?.name}
+                                        </h3>
+
+                                        <p className="text-sm text-gray-600">
+                                            {bookable.is_room_group
+                                                ? ""
+                                                : bookable.room?.description}
+                                        </p>
+
+                                        {bookable.is_room_group && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Total capacity:{" "}
+                                                {bookable.display_capacity}
                                             </p>
-                                            <p className="font-bold text-green-600">
-                                                ${bookable.rate} / hour
-                                            </p>
-                                        </button>
-                                    )
+                                        )}
+
+                                        <p className="font-bold text-green-600 mt-1">
+                                            ${bookable.rate} / hour
+                                        </p>
+
+                                        {isDisabled &&
+                                            !selectedRooms.some(
+                                                (room) =>
+                                                    room.id === bookable.id
+                                            ) && (
+                                                <p className="text-xs text-red-500 mt-1">
+                                                    {bookable.is_room_group
+                                                        ? "Cannot select when individual rooms from this group are selected"
+                                                        : "Part of a selected room group"}
+                                                </p>
+                                            )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Display selected room(s) or room group summary */}
+                        <div className="mt-4">
+                            <p className="text-sm text-gray-600">
+                                Selected: {getSelectedRoomsInfo().count} room(s)
+                            </p>
+                            {selectedRooms.length > 0 && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                    {getSelectedRoomsInfo().details}
+                                </p>
                             )}
                         </div>
+
                         <label className="block mt-4 font-semibold">
                             How many hours do you need the room for?
                         </label>
@@ -439,7 +594,7 @@ const Booking = ({ rooms }) => {
                                 handleDateChange(date);
                             }}
                             value={value}
-                            minDate={new Date()}
+                            minDate={new Date(Date.now() + 86400000)} // Users can only select dates from tomorrow onwards
                         />
                     </div>
                 )}
@@ -505,7 +660,7 @@ const Booking = ({ rooms }) => {
                                             (addon) => (
                                                 <div
                                                     key={addon.id}
-                                                    className="flex items-center justify-between"
+                                                    className="flex items-center justify-between border p-3 rounded hover:bg-gray-50"
                                                 >
                                                     <div>
                                                         <Typography variant="subtitle2">
@@ -517,39 +672,89 @@ const Booking = ({ rooms }) => {
                                                         >
                                                             ${addon.rate} / hr
                                                         </Typography>
+                                                        {addon.product
+                                                            .serial_number && (
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="textSecondary"
+                                                            >
+                                                                Serial:{" "}
+                                                                {
+                                                                    addon
+                                                                        .product
+                                                                        .serial_number
+                                                                }
+                                                                {", "}
+                                                            </Typography>
+                                                        )}
+                                                        {addon.product
+                                                            .brand && (
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="textSecondary"
+                                                                className="ml-2"
+                                                            >
+                                                                Brand:{" "}
+                                                                {
+                                                                    addon
+                                                                        .product
+                                                                        .brand
+                                                                }
+                                                                {", "}
+                                                            </Typography>
+                                                        )}
+                                                        {addon.product
+                                                            .description && (
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="textSecondary"
+                                                                className="ml-2"
+                                                            >
+                                                                Description:{" "}
+                                                                {
+                                                                    addon
+                                                                        .product
+                                                                        .description
+                                                                }
+                                                            </Typography>
+                                                        )}
                                                     </div>
-                                                    <div className="flex items-center">
-                                                        <button
-                                                            onClick={() =>
-                                                                handleDecrementProduct(
-                                                                    addon
+                                                    <button
+                                                        onClick={() => {
+                                                            if (
+                                                                selectedProducts.some(
+                                                                    (p) =>
+                                                                        p.id ===
+                                                                        addon.id
                                                                 )
-                                                            }
-                                                            className="px-2 py-1 border rounded"
-                                                        >
-                                                            –
-                                                        </button>
-                                                        <span className="mx-2">
-                                                            {selectedCounts[
-                                                                addon.id
-                                                            ] || 0}
-                                                        </span>
-                                                        <button
-                                                            onClick={() =>
-                                                                handleIncrementProduct(
+                                                            ) {
+                                                                handleDeselectProduct(
                                                                     addon
-                                                                )
+                                                                );
+                                                            } else {
+                                                                handleSelectProduct(
+                                                                    addon
+                                                                );
                                                             }
-                                                            className="px-2 py-1 border rounded"
-                                                            disabled={
-                                                                (selectedCounts[
+                                                        }}
+                                                        className={`px-3 py-2 rounded ${
+                                                            selectedProducts.some(
+                                                                (p) =>
+                                                                    p.id ===
                                                                     addon.id
-                                                                ] || 0) >= 1
-                                                            }
-                                                        >
-                                                            +
-                                                        </button>
-                                                    </div>
+                                                            )
+                                                                ? "bg-blue-500 text-white"
+                                                                : "border border-gray-300 bg-white"
+                                                        }`}
+                                                    >
+                                                        {selectedProducts.some(
+                                                            (p) =>
+                                                                p.id ===
+                                                                addon.id
+                                                        )
+                                                            ? "Selected"
+                                                            : "Add"}
+                                                    </button>
                                                 </div>
                                             )
                                         )}
@@ -559,7 +764,8 @@ const Booking = ({ rooms }) => {
                                         variant="body2"
                                         color="textSecondary"
                                     >
-                                        No product add-ons available.
+                                        No product add-ons available for the
+                                        selected time slot.
                                     </Typography>
                                 )}
                             </AccordionDetails>
@@ -636,7 +842,8 @@ const Booking = ({ rooms }) => {
                                         variant="body2"
                                         color="textSecondary"
                                     >
-                                        No contractor add-ons available.
+                                        No contractor add-ons available for the
+                                        selected time slot.
                                     </Typography>
                                 )}
                             </AccordionDetails>
@@ -673,9 +880,11 @@ const Booking = ({ rooms }) => {
                                 {bookingItems.map((bookable, index) => (
                                     <tr key={index}>
                                         <td className="border p-2">
-                                            {bookable.room?.name ||
-                                                bookable.product?.name ||
-                                                bookable.role_name}
+                                            {bookable.is_room_group
+                                                ? bookable.display_name
+                                                : bookable.room?.name ||
+                                                  bookable.product?.name ||
+                                                  bookable.role_name}
                                         </td>
                                         <td className="border p-2">
                                             ${bookable.rate}
@@ -778,7 +987,11 @@ const Booking = ({ rooms }) => {
                         {/* Render PaymentForm once clientSecret is available */}
                         {clientSecret ? (
                             <Elements stripe={stripePromise}>
-                                <PaymentForm clientSecret={clientSecret} contractors={selectedContractors} order={reservedOrder} />
+                                <PaymentForm
+                                    clientSecret={clientSecret}
+                                    contractors={selectedContractors}
+                                    order={reservedOrder}
+                                />
                             </Elements>
                         ) : (
                             <p>Loading payment details...</p>
