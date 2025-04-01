@@ -45,7 +45,6 @@ class CheckoutController extends Controller
                 'hours'        => 'required|integer|min:2',
                 'order'        => 'nullable|integer'
             ]);
-            dd($validated);
             // If an order ID is provided, delete the existing order.
             if (isset($validated['order']) && $validated['order']) {
                 Log::info('Order found: ' . $validated['order']);
