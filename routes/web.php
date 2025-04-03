@@ -53,7 +53,7 @@ Route::get('/contractor/confirmation', [ContractorController::class, 'confirm'])
 
 
 Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
-Route::post('/order/{order}', [OrderController::class, 'destroy'])->name('order.destroy');
+Route::delete('/order/{order}', [OrderController::class, 'destroy'])->name('order.destroy');
 
 Route::post('/checkout', [CheckoutController::class, 'checkout'])->name('checkout');
 Route::get('/success', [CheckoutController::class, 'success'])->name('payment.success');
