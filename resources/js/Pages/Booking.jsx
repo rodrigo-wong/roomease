@@ -30,7 +30,7 @@ const Booking = ({ rooms }) => {
     const [selectedContractors, setSelectedContractors] = useState([]);
     const [loadingTimeslots, setLoadingTimeslots] = useState(false);
     const [hours, setHours] = useState(2);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isReserving, setIsReserving] = useState(false);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
@@ -294,6 +294,9 @@ const Booking = ({ rooms }) => {
             setClientSecret(null);
             setTimeLeft(null);
             setStep(5);
+            axios.delete(
+                route("order.destroy", { order: reservedOrder })
+            );
         } else {
             setStep(step - 1);
         }
@@ -390,8 +393,8 @@ const Booking = ({ rooms }) => {
 
     // Handle submit on Checkout step (step 5)
     // This will reserve the order and then move to the Payment step (step 6)
-    const handleSubmit = () => {
-        setIsSubmitting(true);
+    const handleReserve = () => {
+        setIsReserving(true);
         const addons = [...selectedProducts, ...selectedContractors];
         const roomIds = selectedRooms.map((room) => room.id);
 
@@ -421,7 +424,7 @@ const Booking = ({ rooms }) => {
                 setStep(6);
             })
             .catch((error) => {
-                setIsSubmitting(false);
+                setIsReserving(false);
                 if (
                     error.response &&
                     error.response.data &&
@@ -432,12 +435,12 @@ const Booking = ({ rooms }) => {
                         toast.error(errorMessage);
                     });
                 } else {
-                    toast.error("An unexpected error occurred.");
+                    toast.error(error.response.data.error);
                 }
-                console.error(error);
+                console.error(error.response);
             })
             .finally(() => {
-                setIsSubmitting(false);
+                setIsReserving(false);
             });
     };
 
@@ -1010,11 +1013,11 @@ const Booking = ({ rooms }) => {
                     </button>
                     {step < 6 && (
                         <button
-                            onClick={step === 5 ? handleSubmit : nextStep}
+                            onClick={step === 5 ? handleReserve : nextStep}
                             className="px-4 py-2 bg-blue-500 text-white rounded"
                         >
                             {step === 5
-                                ? isSubmitting
+                                ? isReserving
                                     ? "Reserving..."
                                     : "Next"
                                 : "Next"}
