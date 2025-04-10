@@ -18,6 +18,7 @@ class OrderConfirmation extends Mailable
      * @var \App\Models\Order
      */
     public $order;
+    public $orderDetails;
     public $customer;
     public $orderBookables;
 
@@ -30,6 +31,7 @@ class OrderConfirmation extends Mailable
     public function __construct(Order $order)
     {
         $this->order = $order->load('orderBookables.bookable');
+        $this->orderDetails = $order->details();
         Log::info($this->order);
         $this->orderBookables = $order->orderBookables;
         $this->customer = $order->customer;
