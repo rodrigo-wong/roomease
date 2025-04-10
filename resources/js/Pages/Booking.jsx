@@ -3,6 +3,7 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 import { router, usePage } from "@inertiajs/react";
 import GuestLayout from "@/Layouts/GuestLayout";
+import ReservationReviewTable from "./Partials/ReservationReviewTable";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "../../css/ReactCalenderOverride.css";
@@ -294,9 +295,7 @@ const Booking = ({ rooms }) => {
             setClientSecret(null);
             setTimeLeft(null);
             setStep(5);
-            axios.delete(
-                route("order.destroy", { order: reservedOrder })
-            );
+            axios.delete(route("order.destroy", { order: reservedOrder }));
         } else {
             setStep(step - 1);
         }
@@ -857,64 +856,14 @@ const Booking = ({ rooms }) => {
                 {/* Step 5: Checkout (Reservation Review & Contact Info) */}
                 {step === 5 && (
                     <div>
-                        <h2 className="text-lg font-semibold mb-4">Checkout</h2>
+                        <h2 className="text-lg font-semibold mb-4">Order Details</h2>
                         {/* Booking summary */}
-                        <table className="w-full border-collapse border border-gray-300 mb-4">
-                            <thead>
-                                <tr className="bg-gray-100">
-                                    <th className="border p-2 text-left">
-                                        Item
-                                    </th>
-                                    <th className="border p-2 text-left">
-                                        Rate
-                                    </th>
-                                    <th className="border p-2 text-left">
-                                        Hours
-                                    </th>
-                                    <th className="border p-2 text-left">
-                                        Quantity
-                                    </th>
-                                    <th className="border p-2 text-left">
-                                        Subtotal
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {bookingItems.map((bookable, index) => (
-                                    <tr key={index}>
-                                        <td className="border p-2">
-                                            {bookable.is_room_group
-                                                ? bookable.display_name
-                                                : bookable.room?.name ||
-                                                  bookable.product?.name ||
-                                                  bookable.role_name}
-                                        </td>
-                                        <td className="border p-2">
-                                            ${bookable.rate}
-                                        </td>
-                                        <td className="border p-2">{hours}</td>
-                                        <td className="border p-2">
-                                            {bookable.quantity || 1}
-                                        </td>
-                                        <td className="border p-2">
-                                            $
-                                            {bookable.rate *
-                                                hours *
-                                                (bookable.quantity || 1)}
-                                        </td>
-                                    </tr>
-                                ))}
-                                <tr className="font-bold">
-                                    <td className="border p-2" colSpan="4">
-                                        Total
-                                    </td>
-                                    <td className="border p-2">
-                                        ${totalAmount}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-
+                        <ReservationReviewTable
+                            bookingItems={bookingItems}
+                            hours={hours}
+                            totalAmount={totalAmount}
+                        />
+                        <h2 className="text-lg font-semibold mb-4">Customer Information</h2>
                         {/* Contact information form */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div>
@@ -975,6 +924,15 @@ const Booking = ({ rooms }) => {
                 {/* Step 6: Payment */}
                 {step === 6 && (
                     <div>
+                        <h2 className="text-lg font-semibold mb-4">
+                            Order Details
+                        </h2>
+                        <ReservationReviewTable
+                            bookingItems={bookingItems}
+                            hours={hours}
+                            totalAmount={totalAmount}
+                        />
+
                         <h2 className="text-lg font-semibold mb-4">Payment</h2>
                         {/* Optionally repeat a booking summary or order details */}
                         {timeLeft !== null && (
