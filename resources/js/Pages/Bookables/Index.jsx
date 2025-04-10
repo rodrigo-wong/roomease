@@ -8,68 +8,75 @@ import RoomTable from "./Partials/RoomTable";
 import { Head } from "@inertiajs/react";
 
 const BookablesIndex = ({ products, rooms, contractors }) => {
-       // Get tab directly from window.location.search
-       const getTabFromUrl = () => {
+    // Get tab directly from window.location.search
+    const getTabFromUrl = () => {
         const params = new URLSearchParams(window.location.search);
-        return params.get('tab') || 'products';
+        return params.get("tab") || "products";
     };
-    
+
     // Set the active tab based on URL directly
     const [activeTab, setActiveTab] = useState(getTabFromUrl());
-    
+
     // Update tab whenever the URL changes
     useEffect(() => {
         const handleUrlChange = () => {
             const currentTab = getTabFromUrl();
             setActiveTab(currentTab);
         };
-        
+
         // Listen for popstate events (browser back/forward)
-        window.addEventListener('popstate', handleUrlChange);
-        
+        window.addEventListener("popstate", handleUrlChange);
+
         // Initial check on component mount
         handleUrlChange();
-        
+
         // Cleanup
-        return () => window.removeEventListener('popstate', handleUrlChange);
+        return () => window.removeEventListener("popstate", handleUrlChange);
     }, []);
-    
+
     const handleTabChange = (tabName) => {
         setActiveTab(tabName);
-        
-        // Update the URL without a full page reload
-        router.get(route('bookables.index'), { tab: tabName }, {
-            preserveState: true,
-            replace: true,
-            preserveScroll: true,
-        });
-    };
-    
 
+        // Update the URL without a full page reload
+        router.get(
+            route("bookables.index"),
+            { tab: tabName },
+            {
+                preserveState: true,
+                replace: true,
+                preserveScroll: true,
+            }
+        );
+    };
 
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Bookables
-                </h2>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="Bookables" />
-            
+
             <div className="py-12">
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">
                             {/* Header with Create Button */}
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-lg font-medium">Manage Bookables</h3>
+                                <h3 className="text-lg font-medium">
+                                    Manage Bookables
+                                </h3>
                                 <Link
                                     href={route("bookables.create")}
                                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-4 w-4 mr-1"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                    >
+                                        <path
+                                            fillRule="evenodd"
+                                            d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+                                            clipRule="evenodd"
+                                        />
                                     </svg>
                                     Create Bookable
                                 </Link>
@@ -98,7 +105,9 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                     Rooms
                                 </button>
                                 <button
-                                    onClick={() => handleTabChange("contractors")}
+                                    onClick={() =>
+                                        handleTabChange("contractors")
+                                    }
                                     className={`py-2 px-4 font-medium text-sm border-b-2 focus:outline-none ${
                                         activeTab === "contractors"
                                             ? "border-indigo-500 text-indigo-600"
@@ -115,7 +124,9 @@ const BookablesIndex = ({ products, rooms, contractors }) => {
                                     <ProductTable products={products} />
                                 )}
                                 {activeTab === "contractors" && (
-                                    <ContractorTable contractors={contractors} />
+                                    <ContractorTable
+                                        contractors={contractors}
+                                    />
                                 )}
                                 {activeTab === "rooms" && (
                                     <RoomTable rooms={rooms} />
