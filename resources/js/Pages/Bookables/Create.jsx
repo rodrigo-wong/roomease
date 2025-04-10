@@ -105,13 +105,7 @@ const BookablesCreate = ({ productCategories, contractorRoles }) => {
     }, [data.role_id]);
 
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Create Bookable
-                </h2>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="Create Bookable" />
 
             <div className="py-12">
