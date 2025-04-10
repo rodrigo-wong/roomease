@@ -23,6 +23,11 @@ class ContractorConfirmation extends Mailable
     public $order;
 
     /**
+     * The order details instance.
+     */
+    public $orderDetails;
+
+    /**
      * The customer instance.
      * @var \App\Models\Customer
      */
