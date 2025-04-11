@@ -30,8 +30,8 @@ This is a booking system built using **Laravel 11** with **Inertia.js** and **Re
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/your-repo-name.git
-cd your-repo-name
+git clone https://github.com/rodrigo-wong/roomease.git
+cd roomease
 ```
 
 ### 2. Install PHP Dependencies
@@ -87,7 +87,8 @@ DEFAULT_ADMIN_PASSWORD=admin123!
 ### 5. Run Migrations and Seeders
 
 ```bash
-php artisan migrate --seed
+php artisan migrate
+php artisan db:seed
 ```
 
 ### 6. Build Frontend
