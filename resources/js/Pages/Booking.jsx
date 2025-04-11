@@ -411,6 +411,41 @@ const Booking = ({ rooms }) => {
             order: reservedOrder,
         };
 
+        if(!firstName || !lastName || !email || !phoneNumber) {
+            toast.error("Please fill in all contact information fields.");
+            setIsReserving(false);
+            return;
+        }
+
+        if (!/^[a-zA-Z]+$/.test(firstName)) {
+            toast.error("First name can only contain letters.");
+            setIsReserving(false);
+            return;
+        }
+        if (!/^[a-zA-Z]+$/.test(lastName)) {
+            toast.error("Last name can only contain letters.");
+            setIsReserving(false);
+            return;
+        }
+        
+
+
+        if (isNaN(parseInt(phoneNumber))) {
+            toast.error("Please enter a valid phone number.");
+            setIsReserving(false);
+            return;
+        }
+        if (phoneNumber.length < 10) {
+            toast.error("Phone number must be at least 10 digits.");
+            setIsReserving(false);
+            return;
+        }
+        if (phoneNumber.length > 10) {
+            toast.error("Phone number must be at most 10 digits.");
+            setIsReserving(false);
+            return;
+        }
+
         axios
             .post(route("checkout"), bookingData)
             .then((response) => {
@@ -577,6 +612,7 @@ const Booking = ({ rooms }) => {
                         <input
                             type="number"
                             min="2"
+                            max="8"
                             value={hours}
                             onChange={(e) => setHours(Number(e.target.value))}
                             className="p-2 border border-gray-300 rounded"
@@ -607,6 +643,14 @@ const Booking = ({ rooms }) => {
                         <h2 className="text-lg font-semibold mb-4">
                             Select Time Slots
                         </h2>
+                        {availableTimeslots.length == 0 && (
+                            <p className="text-sm text-gray">
+                                No available time slots for the selected date.
+                                <br />
+                                Please select a different date or adjust the
+                                number of hours.
+                            </p>
+                        )}
                         {loadingTimeslots ? (
                             <p>Loading available time slots...</p>
                         ) : (
@@ -910,11 +954,13 @@ const Booking = ({ rooms }) => {
                                 Phone Number
                             </label>
                             <input
-                                type="text"
+                                type="tel"
                                 value={phoneNumber}
-                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                onChange={(e) =>{
+                                    setPhoneNumber(e.target.value); 
+                                }}
                                 className="p-2 border border-gray-300 rounded w-full"
-                                placeholder="Enter phone number"
+                                placeholder="Enter phone number (ex: 1234567890)"
                                 required
                             />
                         </div>
@@ -966,6 +1012,7 @@ const Booking = ({ rooms }) => {
                         onClick={prevStep}
                         className="px-4 py-2 bg-gray-300 rounded"
                         disabled={step === 1}
+                        hidden={step === 1}
                     >
                         Back
                     </button>
